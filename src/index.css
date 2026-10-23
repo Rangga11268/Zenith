@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+@layer utilities {
+  .bg-oled {
+    background-color: #08090e;
+  }
+
+  .border-glass {
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+
+  .shadow-notch {
+    box-shadow: 0 16px 32px -8px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  }
+}

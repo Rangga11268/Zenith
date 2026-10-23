@@ -14,6 +14,10 @@ out
 build
 *.local
 
+# Internal agent logs
+.agents/
+ORIGINAL_REQUEST.md
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
