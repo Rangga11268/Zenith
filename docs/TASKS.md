@@ -30,10 +30,11 @@ Project Scaffold (Vite + Electron + TS + Tailwind)
 ## Detailed Milestones
 
 ### Milestone 1: Project Scaffolding & Setup
-- [ ] Inisialisasi struktur direktori di `D:\Ngoding\Zenith`.
-- [ ] Konfigurasi `package.json` dengan `electron`, `vite`, `react`, `typescript`, `tailwindcss`, `lucide-react`.
-- [ ] Setup script `npm run dev` dan `npm run build`.
-- [ ] *Acceptance Criteria:* Jendela Electron frameless berhasil terbuka di tengah atas layar dengan background transparan.
+- [x] Inisialisasi struktur direktori di `D:\Ngoding\Zenith`.
+- [x] Konfigurasi `package.json` dengan `electron`, `vite`, `react 19`, `typescript 5.7`, `@tailwindcss/vite`, `lucide-react`.
+- [x] Setup script `npm run dev`, `npm run build`, dan `npm test`.
+- [x] *Acceptance Criteria:* Jendela Electron frameless berhasil terbuka di tengah atas layar dengan background transparan, hit-testing click-through (`setIgnoreMouseEvents`), dan lulus 12 verifikasi otomatis.
+- [x] Penerapan `/antislop-ui`: palet Obsidian `#090A0F`, typografis clean, tanpa rainbow skittles, tanpa infinite ping loops, micro-borders tajam.
 
 ### Milestone 2: Notch Pill Container & Smooth Expansion
 - [ ] Implementasi UI bilah pil hitam rounded (*collapsed state*) di `src/components/NotchBar.tsx`.
