@@ -103,6 +103,45 @@ Zenith menempel di bagian tengah paling atas layar monitor pengguna (*frameless,
 
 ---
 
+### 3.8. Fitur 7: Dynamic Battery & Power Telemetry (Ala macOS Notch / Dynamic Island)
+* **Kebutuhan & Perilaku Visual:**
+  * **Event ⚡ Charger Dicolok (Power Connected):**
+    * Notch secara asimetris melebar horizontal (`~160px -> ~280px`) dengan fisika spring.
+    * Kiri: Ikon baterai hijau neon (`#30D158`) dengan animasi petir (*charging bolt*).
+    * Kanan: Indikator persentase baterai (`78% • Charging`) dan cincin progres.
+    * Tampil selama 3 detik (*transient state*), lalu menyusut kembali (*spring collapse*) ke ukuran pill idle.
+  * **Event 🪫 Baterai Lemah (Low Battery Warning):**
+    * **≤ 20% (Warning):** Notch mekar dengan aksen Amber/Orange (`#FF9F0A`) dan micro-shake (3 getaran redam halus).
+    * **≤ 10% (Critical):** Aksen Merah Karang (`#FF453A`) dengan ikon baterai berkedip lembut.
+    * Menampilkan persentase dan estimasi sisa waktu baterai.
+
+---
+
+### 3.9. Fitur 8: System & Dev Notification Morphing (Dynamic Island Style)
+* **Kebutuhan & Perilaku Visual:**
+  * **Morphing Eruption:** Saat ada notifikasi masuk (pesan, peringatan git, atau proses build dev selesai), notch mekar lembut ke bawah (`height: 38px -> ~88px`, `width: ~220px -> ~380px`) dengan *overshoot elasticity*.
+  * **Staggered Content:**
+    * Ikon aplikasi / status (kiri).
+    * Judul notifikasi + subteks pesan (tengah).
+  * **Interaksi:**
+    * **Hover:** Menjeda auto-dismiss.
+    * **Klik:** Membuka detail/aplikasi terkait.
+    * **Auto-Dismiss:** Mengempis kembali ke bentuk notch ringkas setelah 3.5 detik jika tidak disentuh.
+
+---
+
+### 3.10. Desain & Estetika Antarmuka (macOS Notch Inspiration)
+* **Dua Opsi Tampilan (Bisa Diganti di Pengaturan):**
+  1. **Floating Dynamic Island (Default):** Pil mengambang oval melengkung 10px dari batas atas monitor.
+  2. **Flush Bezel Notch:** Menempel langsung di tepi atas monitor dengan sudut telinga cekung (*inverted fillet ears*) persis seperti notch MacBook Pro.
+* **Material & Finishing:**
+  * Warna dasar: *Pitch black OLED* (`#08090E`) dengan *subtle glass border* (`1px solid rgba(255, 255, 255, 0.1)`).
+  * Efek bayangan: *Soft ambient elevation* (`box-shadow: 0 16px 32px rgba(0,0,0,0.4)`).
+  * Kurva sudut: *Continuous squircle corner radius* ($n \approx 4-5$) agar sudut tampak menyatu mulus tanpa diskontinuitas kelengkungan.
+
+
+---
+
 ## 4. Non-Functional Requirements (Performance & Security)
 
 1. **Performa:**

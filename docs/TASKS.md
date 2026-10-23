@@ -72,7 +72,19 @@ Project Scaffold (Vite + Electron + TS + Tailwind)
 - [ ] UI response: kotak jawaban rapi dengan *One-Click Copy* untuk blok kode.
 - [ ] *Acceptance Criteria:* Mengetik "bikin fungsi debounce di JS" langsung memberikan snippet yang bisa disalin ke clipboard dalam 1 klik.
 
-### Milestone 8: Code Snippet & Command Shelf
+### Milestone 8: Dynamic Battery & Charging Animation (Mac Style)
+- [ ] Integrasi `navigator.getBattery()` dengan listener real-time.
+- [ ] UI animasi mekar asimetris saat charger terhubung (ikon petir hijau + persentase baterai).
+- [ ] UI peringatan baterai lemah (Amber 20% & Merah 10%) dengan animasi gentle shake.
+- [ ] *Acceptance Criteria:* Mencolokkan charger laptop langsung memicu animasi mekar Dynamic Island baterai selama 3 detik.
+
+### Milestone 9: Notification Morphing & macOS Glass Styling
+- [ ] Desain styling *MacBook Notch* dengan sudut telinga melengkung (*concave inverted fillet ears*).
+- [ ] Implementasi animasi *bloom notification* saat ada pesan/peringatan sistem.
+- [ ] Dynamic click-through hit testing (`setIgnoreMouseEvents`).
+- [ ] *Acceptance Criteria:* Notifikasi masuk membuat notch membesar lembut menampilkan pesan lalu mengempis kembali.
+
+### Milestone 10: Code Snippet Shelf, Hotkeys & Windows Auto-Launch
 - [ ] Penyimpanan template kode / perintah terminal favorit.
 - [ ] Drag and drop file / text ke area shelf.
 - [ ] Tombol salin instan.

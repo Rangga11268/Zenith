@@ -124,6 +124,25 @@ export interface ZenithAPI {
   // AI Copilot
   askAI: (prompt: string, modelType: 'ollama' | 'gemini') => Promise<string>;
   
+
+  // Battery & Power Events
+  getBatteryStatus: () => Promise<{
+    level: number;
+    charging: boolean;
+    chargingTime: number;
+    dischargingTime: number;
+  }>;
+  onBatteryChange: (callback: (status: any) => void) => void;
+
+  // System Notification Hub
+  onNotificationReceived: (callback: (notif: {
+    id: string;
+    appName: string;
+    title: string;
+    body: string;
+    icon?: string;
+  }) => void) => void;
+
   // Code Snippet Shelf
   loadSnippets: () => Promise<SnippetItem[]>;
   saveSnippets: (snippets: SnippetItem[]) => Promise<void>;
@@ -171,6 +190,21 @@ Menggunakan `child_process.execFile('git', ['status', '--porcelain', '-b'])`:
 * **Gemini API Endpoint:** Google Gemini REST API via `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`.
 
 ---
+
+
+### 4.5. Battery & Power Telemetry Subsystem
+* Di sisi Renderer (Chromium): Menggunakan standar W3C `navigator.getBattery()`:
+  * Mendengarkan event `onchargingchange` secara instan (0ms delay saat charger dicolok/dicabut).
+  * Mendengarkan `onlevelchange` untuk memicu peringatan 20% (Warning) dan 10% (Critical).
+* Di sisi Main Process: Sinkronisasi cadangan menggunakan Windows CIM/WMI `Win32_Battery` saat aplikasi pertama kali boot.
+
+### 4.6. Mac-Style Spring Animation Physics & Hit-Testing
+* **Spring Dynamics (Framer Motion / CSS Spring):**
+  * `stiffness: 320`, `damping: 26`, `mass: 0.8` (untuk mekar ekspansif).
+  * `stiffness: 400`, `damping: 32`, `mass: 0.7` (untuk kolaps sedot ke atas).
+* **Click-Through Hit Testing (`setIgnoreMouseEvents`):**
+  * Saat Idle/Pill: Area transparan di luar bentuk pill diatur agar tembus klik mouse (`win.setIgnoreMouseEvents(true, { forward: true })`).
+  * Saat mouse memasuki batas pill (event `mouseenter`): Jendela kembali aktif menangkap interaksi klik (`win.setIgnoreMouseEvents(false)`).
 
 ## 5. Security & Boundary Rules
 * **No Remote Code Execution:** Tidak ada `eval()` atau injeksi skrip dari luar.
