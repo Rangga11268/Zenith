@@ -1,11 +1,20 @@
-# Zenith 🌌
+<div align="center">
 
-> **The Apex Desktop Notch for Developers on Windows**  
-> An intelligent overhead companion tracking your media, tasks, Git repository, local dev servers, and instant AI diagnostics in a sleek top-screen pill.
+  <img src="assets/icon.png" width="128" height="128" alt="Zenith Logo" />
 
-[![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011%20(64--bit)-blue?style=flat-square&logo=windows)](https://github.com/Rangga11268/Zenith)
-[![Framework](https://img.shields.io/badge/built%20with-Electron%20%7C%20React%20%7C%20Tailwind-61dafb?style=flat-square&logo=react)](https://github.com/Rangga11268/Zenith)
-[![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
+  # Zenith 🌌
+
+  ### The Apex Desktop Notch for Developers on Windows
+
+  An intelligent overhead companion tracking your media, tasks, Git repository, local dev servers, and instant AI diagnostics in a sleek top-screen pill.
+
+  <br />
+
+  [![Platform](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011%20(64--bit)-blue?style=flat-square&logo=windows)](https://github.com/Rangga11268/Zenith)
+  [![Framework](https://img.shields.io/badge/built%20with-Electron%20%7C%20React%20%7C%20Tailwind-61dafb?style=flat-square&logo=react)](https://github.com/Rangga11268/Zenith)
+  [![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
+
+</div>
 
 ---
 
