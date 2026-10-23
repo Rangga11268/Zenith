@@ -1,0 +1,84 @@
+# Task Breakdown & Implementation Roadmap: Zenith
+
+**Methodology:** Vertical Slices (End-to-End Per Feature)  
+**Tracking Status:** Ready for Milestone 1  
+
+---
+
+## Dependency Graph
+
+```
+Project Scaffold (Vite + Electron + TS + Tailwind)
+   │
+   ├── Core Window & Frameless Transparent Shell (Milestone 1)
+   │     │
+   │     ├── Slice A: Collapsed / Expanded Notch Motion (Milestone 2)
+   │     │     │
+   │     │     ├── Slice B: To-Do & Task Manager (Milestone 3)
+   │     │     ├── Slice C: Media Player & Lyrics (Milestone 4)
+   │     │     ├── Slice D: Git Status HUD (Milestone 5)
+   │     │     ├── Slice E: Local Port & Dev Server Monitor (Milestone 6)
+   │     │     └── Slice F: AI Copilot Quick Prompt (Milestone 7)
+   │     │
+   │     └── Slice G: Code Snippet & Command Shelf (Milestone 8)
+   │
+   └── Packaging & Windows Auto-Launch (Milestone 9)
+```
+
+---
+
+## Detailed Milestones
+
+### Milestone 1: Project Scaffolding & Setup
+- [ ] Inisialisasi struktur direktori di `D:\Ngoding\Zenith`.
+- [ ] Konfigurasi `package.json` dengan `electron`, `vite`, `react`, `typescript`, `tailwindcss`, `lucide-react`.
+- [ ] Setup script `npm run dev` dan `npm run build`.
+- [ ] *Acceptance Criteria:* Jendela Electron frameless berhasil terbuka di tengah atas layar dengan background transparan.
+
+### Milestone 2: Notch Pill Container & Smooth Expansion
+- [ ] Implementasi UI bilah pil hitam rounded (*collapsed state*) di `src/components/NotchBar.tsx`.
+- [ ] Implementasi animasi transisi membuka ke deck multifungsi (*expanded state*) menggunakan Tailwind / CSS transitions.
+- [ ] Pengaturan dynamic window resizing via IPC (resize dari 38px ke 420px saat dibuka).
+- [ ] *Acceptance Criteria:* Klik atau hover pada notch membuka deck dengan transisi 60 FPS tanpa jeda.
+
+### Milestone 3: To-Do & Task Manager (Fitur Bawaan)
+- [ ] Implementasi IPC handler untuk load/save task di `%APPDATA%\Zenith\tasks.json`.
+- [ ] Pembuatan UI To-Do tab: list task, checkbox, input box untuk tambah task baru.
+- [ ] Sinkronisasi dengan file `todo.txt` lama dari Nusa (jika ada).
+- [ ] *Acceptance Criteria:* Task dapat ditambah, dicentang selesai, dihapus, dan tetap tersimpan saat aplikasi ditutup.
+
+### Milestone 4: Media Player & LRCLIB Lyrics
+- [ ] Implementasi Windows GSMTC / media keys controller di Main Process.
+- [ ] Implementasi UI player: judul lagu, artis, tombol Play/Pause/Skip, dan progress bar.
+- [ ] Integrasi API `lrclib.net` untuk menampilkan lirik lagu aktif.
+- [ ] *Acceptance Criteria:* Memutar lagu di Spotify/browser otomatis menampilkan judul di notch dan tombol pause berfungsi.
+
+### Milestone 5: Git Status HUD (Developer Feature)
+- [ ] Implementasi IPC `git-status` menggunakan `child_process` Git CLI.
+- [ ] UI kartu Git: menampilkan branch aktif, jumlah uncommitted changes (modified/untracked), dan last commit message.
+- [ ] Auto-poll interval (setiap 5-10 detik jika notch sedang dibuka).
+- [ ] *Acceptance Criteria:* Mengedit file di proyek langsung memperbarui counter uncommitted changes di notch.
+
+### Milestone 6: Dev Server & Port Monitor (Developer Feature)
+- [ ] Implementasi port scanner cepat via `net.Socket` untuk port `3000`, `5173`, `8000`, `8080`, `8501`.
+- [ ] UI indikator: lampu hijau bulat, label port, dan tombol 1-klik untuk buka di browser default.
+- [ ] *Acceptance Criteria:* Menjalankan `npm run dev` di proyek mana saja langsung memunculkan indikator hijau `🟢 5173` di notch.
+
+### Milestone 7: AI Copilot & Quick Prompt Bar (Developer Feature)
+- [ ] Input box prompt di notch dengan shortcut `Ctrl + Shift + Space`.
+- [ ] Integrasi backend:
+  - Local Ollama (`http://localhost:11434`), atau
+  - Google Gemini API key.
+- [ ] UI response: kotak jawaban rapi dengan *One-Click Copy* untuk blok kode.
+- [ ] *Acceptance Criteria:* Mengetik "bikin fungsi debounce di JS" langsung memberikan snippet yang bisa disalin ke clipboard dalam 1 klik.
+
+### Milestone 8: Code Snippet & Command Shelf
+- [ ] Penyimpanan template kode / perintah terminal favorit.
+- [ ] Drag and drop file / text ke area shelf.
+- [ ] Tombol salin instan.
+- [ ] *Acceptance Criteria:* File atau potongan teks yang di-drop ke shelf tersimpan dan dapat disalin kembali.
+
+### Milestone 9: Polish, Keyboard Shortcuts & Run on Startup
+- [ ] Global hotkey untuk toggle buka/tutup notch.
+- [ ] Opsi "Start with Windows".
+- [ ] Final testing performa (verifikasi CPU 0% saat idle dan RAM < 80 MB).
