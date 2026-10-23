@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="gradC" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00F2FE"/>
+      <stop offset="100%" stop-color="#4FACFE"/>
+    </linearGradient>
+    <linearGradient id="chevronGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#38BDF8"/>
+    </linearGradient>
+  </defs>
+  <!-- Background Squircle -->
+  <rect width="256" height="256" rx="56" fill="#0A0C14"/>
+  <rect x="4" y="4" width="248" height="248" rx="52" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="2"/>
+
+  <!-- Floating Island Notch Pill -->
+  <rect x="48" y="52" width="160" height="52" rx="26" fill="#131724" stroke="url(#gradC)" stroke-width="3"/>
+  
+  <!-- Mini status dots inside notch pill -->
+  <circle cx="76" cy="78" r="6" fill="#10B981"/> <!-- Green dev port active -->
+  <circle cx="94" cy="78" r="5" fill="#38BDF8" opacity="0.8"/> <!-- Music playing -->
+  
+  <!-- Mini wave bars in notch pill -->
+  <rect x="156" y="73" width="3" height="10" rx="1.5" fill="#818CF8"/>
+  <rect x="163" y="69" width="3" height="18" rx="1.5" fill="#818CF8"/>
+  <rect x="170" y="72" width="3" height="12" rx="1.5" fill="#818CF8"/>
+
+  <!-- Upward Zenith Developer Chevron (< ^ >) -->
+  <path d="M 82 178 L 128 126 L 174 178" fill="none" stroke="url(#chevronGrad)" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Glowing Apex Cap -->
+  <circle cx="128" cy="116" r="6" fill="#00F2FE"/>
+</svg>

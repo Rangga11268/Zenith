@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="gradA" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00F2FE"/>
+      <stop offset="100%" stop-color="#4FACFE"/>
+    </linearGradient>
+    <linearGradient id="glowA" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#38BDF8" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <!-- Background Squircle -->
+  <rect width="256" height="256" rx="56" fill="#0B0D14"/>
+  <rect x="4" y="4" width="248" height="248" rx="52" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="2"/>
+  
+  <!-- Outer subtle glow -->
+  <circle cx="128" cy="128" r="80" fill="url(#glowA)"/>
+
+  <!-- Top Notch Pill Baseline -->
+  <rect x="80" y="38" width="96" height="12" rx="6" fill="#38BDF8" opacity="0.6"/>
+
+  <!-- Stylized Zenith Z-Apex Glyph -->
+  <path d="M 68 76 C 68 70.477 72.477 66 78 66 H 178 C 183.523 66 188 70.477 188 76 V 86 C 188 89.8 185.8 93.3 182.4 94.9 L 102 134 H 178 C 183.523 134 188 138.477 188 144 V 176 C 188 182.627 182.627 188 176 188 H 76 C 70.477 188 66 183.523 66 178 V 168 C 66 164.2 68.2 160.7 71.6 159.1 L 152 120 H 78 C 72.477 120 68 115.523 68 110 Z" fill="url(#gradA)"/>
+  
+  <!-- Glowing Apex Spark / North Star -->
+  <path d="M 128 106 L 131 117 L 142 120 L 131 123 L 128 134 L 125 123 L 114 120 L 125 117 Z" fill="#FFFFFF"/>
+</svg>

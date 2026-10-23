@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="gradB" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="50%" stop-color="#818CF8"/>
+      <stop offset="100%" stop-color="#C084FC"/>
+    </linearGradient>
+    <linearGradient id="notchRim" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#818CF8"/>
+    </linearGradient>
+  </defs>
+  <!-- Background Squircle -->
+  <rect width="256" height="256" rx="56" fill="#08090E"/>
+  <rect x="4" y="4" width="248" height="248" rx="52" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="2"/>
+  
+  <!-- Hanging Living Notch Silhouette -->
+  <path d="M 44 48 H 212 C 212 48 206 132 176 156 C 158 170 144 174 128 174 C 112 174 98 170 80 156 C 50 132 44 48 44 48 Z" fill="#111420" stroke="url(#notchRim)" stroke-width="3"/>
+
+  <!-- Pulse / Waveform Soundbar Lines (Media Player tribute) -->
+  <rect x="74" y="98" width="6" height="24" rx="3" fill="#38BDF8" opacity="0.5"/>
+  <rect x="86" y="90" width="6" height="40" rx="3" fill="#38BDF8" opacity="0.8"/>
+  <rect x="164" y="90" width="6" height="40" rx="3" fill="#C084FC" opacity="0.8"/>
+  <rect x="176" y="98" width="6" height="24" rx="3" fill="#C084FC" opacity="0.5"/>
+
+  <!-- Center Intelligent Living Eyes / Dev Companion -->
+  <circle cx="112" cy="110" r="12" fill="#FFFFFF"/>
+  <circle cx="114" cy="108" r="4" fill="#38BDF8"/>
+  <circle cx="144" cy="110" r="12" fill="#FFFFFF"/>
+  <circle cx="146" cy="108" r="4" fill="#818CF8"/>
+
+  <!-- Zenith Apex Signal at bottom curve -->
+  <circle cx="128" cy="154" r="4" fill="#38BDF8"/>
+</svg>
