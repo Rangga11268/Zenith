@@ -788,55 +788,14 @@ let simulatedMedia: MediaInfo | null = null
 
 ipcMain.handle('media:get-status', async (): Promise<MediaInfo | null> => {
   if (simulatedMedia) return simulatedMedia
-
-  return new Promise((resolve) => {
-    const probePath = path.join(__dirname, 'media-probe.ps1')
-    const fallbackPath = path.join(process.cwd(), 'electron', 'media-probe.ps1')
-    const scriptFile = fs.existsSync(probePath) ? probePath : fallbackPath
-
-    if (!fs.existsSync(scriptFile)) {
-      return resolve(null)
-    }
-
-    exec(
-      `powershell -NoProfile -ExecutionPolicy Bypass -File "${scriptFile}"`,
-      { timeout: 1500 },
-      (err, stdout) => {
-        if (err || !stdout) return resolve(null)
-        try {
-          const trimmed = stdout.trim()
-          if (!trimmed || trimmed === 'null') return resolve(null)
-          const parsed = JSON.parse(trimmed)
-          if (parsed && parsed.title) {
-            return resolve(parsed)
-          }
-        } catch {
-          // ignore parsing error
-        }
-        resolve(null)
-      }
-    )
-  })
+  return null
 })
 
 ipcMain.handle('media:control', async (_event, action: 'play' | 'pause' | 'next' | 'prev') => {
-  const keyMap: Record<string, number> = {
-    play: 179,
-    pause: 179,
-    next: 176,
-    prev: 177,
-  }
-  const keyCode = keyMap[action]
   if (simulatedMedia) {
     if (action === 'play') simulatedMedia.isPlaying = true
     if (action === 'pause') simulatedMedia.isPlaying = false
     mainWindow?.webContents.send('media:status-changed', simulatedMedia)
-  }
-  if (keyCode) {
-    exec(
-      `powershell -NoProfile -Command "(New-Object -ComObject WScript.Shell).SendKeys([char]${keyCode})"`,
-      () => {}
-    )
   }
 })
 
