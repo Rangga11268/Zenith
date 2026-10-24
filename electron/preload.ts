@@ -12,6 +12,13 @@ export interface BatteryStatus {
   charging: boolean
 }
 
+export interface TaskItem {
+  id: string
+  title: string
+  completed: boolean
+  createdAt: number
+}
+
 export interface ZenithAPI {
   expandWindow: (expanded: boolean) => Promise<void>
   closeApp: () => Promise<void>
@@ -20,6 +27,8 @@ export interface ZenithAPI {
   triggerNotification: (notif: NotificationPayload) => void
   onNotification: (callback: (notif: NotificationPayload) => void) => () => void
   getBatteryStatus: () => Promise<BatteryStatus>
+  loadTasks: () => Promise<TaskItem[]>
+  saveTasks: (tasks: TaskItem[]) => Promise<boolean>
 }
 
 const api: ZenithAPI = {
@@ -44,6 +53,8 @@ const api: ZenithAPI = {
     }
   },
   getBatteryStatus: () => ipcRenderer.invoke('battery:get-status'),
+  loadTasks: () => ipcRenderer.invoke('tasks:load'),
+  saveTasks: (tasks: TaskItem[]) => ipcRenderer.invoke('tasks:save', tasks),
 }
 
 contextBridge.exposeInMainWorld('devnotch', api)

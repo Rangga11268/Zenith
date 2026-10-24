@@ -12,6 +12,13 @@ export interface BatteryStatus {
   charging: boolean
 }
 
+export interface TaskItem {
+  id: string
+  title: string
+  completed: boolean
+  createdAt: number
+}
+
 export interface ZenithAPI {
   expandWindow: (expanded: boolean) => Promise<void>
   closeApp: () => Promise<void>
@@ -20,6 +27,8 @@ export interface ZenithAPI {
   triggerNotification: (notif: NotificationPayload) => void
   onNotification: (callback: (notif: NotificationPayload) => void) => () => void
   getBatteryStatus: () => Promise<BatteryStatus>
+  loadTasks: () => Promise<TaskItem[]>
+  saveTasks: (tasks: TaskItem[]) => Promise<boolean>
 }
 
 declare global {

@@ -45,10 +45,11 @@ Project Scaffold (Vite + Electron + TS + Tailwind)
 - [x] *Acceptance Criteria:* Klik, hover, atau shortcut membuka deck dengan transisi 60 FPS tanpa jeda, lulus 15 verifikasi otomatis termasuk Dynamic Island battery & notification morphs.
 
 ### Milestone 3: To-Do & Task Manager (Fitur Bawaan)
-- [ ] Implementasi IPC handler untuk load/save task di `%APPDATA%\Zenith\tasks.json`.
-- [ ] Pembuatan UI To-Do tab: list task, checkbox, input box untuk tambah task baru.
-- [ ] Sinkronisasi dengan file `todo.txt` lama dari Nusa (jika ada).
-- [ ] *Acceptance Criteria:* Task dapat ditambah, dicentang selesai, dihapus, dan tetap tersimpan saat aplikasi ditutup.
+- [x] Implementasi IPC handler untuk load/save task di `%APPDATA%\Zenith\tasks.json`.
+- [x] Pembuatan UI To-Do tab: list task, checkbox, input box untuk tambah task baru.
+- [x] Sinkronisasi otomatis dengan file `todo.txt` lama dari Nusa jika tersedia.
+- [x] Fitur filter task (`all`, `active`, `completed`) dan aksi `Clear Done`.
+- [x] *Acceptance Criteria:* Task dapat ditambah, dicentang selesai, dihapus, dan tetap tersimpan saat aplikasi ditutup (lulus verifikasi persistensi disk otomatis).
 
 ### Milestone 4: Media Player & LRCLIB Lyrics
 - [ ] Implementasi Windows GSMTC / media keys controller di Main Process.

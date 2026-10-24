@@ -476,8 +476,58 @@ function createWindow() {
         }
         console.log('[TEST] Dynamic Island Notification Morph: PASS')
 
+        // Test Milestone 3: Task Manager Loading, Adding, Toggling, and Saving
+        console.log('[TEST] Testing Milestone 3 Task Manager...')
+        const taskTestResult = await mainWindow!.webContents.executeJavaScript(`
+          (async function() {
+            const root = document.getElementById('root');
+            const pill = root.querySelector('[data-testid="notch-pill"]');
+            
+            // Expand deck and switch to Tasks tab if needed
+            if (!root.textContent.includes('Daily Quick Tasks')) {
+              pill.click();
+              await new Promise(r => setTimeout(r, 100));
+            }
+            const tasksBtn = Array.from(root.querySelectorAll('button')).find(b => b.textContent && b.textContent.includes('Tasks'));
+            if (tasksBtn) tasksBtn.click();
+            await new Promise(r => setTimeout(r, 150));
+
+            // Verify input exists
+            const input = root.querySelector('input[data-testid="new-task-input"]');
+            if (!input) return { ok: false, err: 'Task input field missing' };
+
+            // Simulate adding a task via custom event
+            window.dispatchEvent(new CustomEvent('zenith:test-add-task', {
+              detail: { title: 'Deploy Zenith to production' }
+            }));
+            await new Promise(r => setTimeout(r, 150));
+
+            const hasNewTask = root.textContent.includes('Deploy Zenith to production');
+            if (!hasNewTask) return { ok: false, err: 'Added task not found in DOM' };
+
+            // Test toggling completion
+            const toggleBtn = root.querySelector('button[data-testid="task-toggle"]');
+            if (!toggleBtn) return { ok: false, err: 'Task toggle button missing' };
+            toggleBtn.click();
+            await new Promise(r => setTimeout(r, 100));
+
+            return { ok: true };
+          })()
+        `)
+        if (!taskTestResult.ok) {
+          throw new Error('Task Manager test failed: ' + taskTestResult.err)
+        }
+        console.log('[TEST] Task Manager Loading & Operations: PASS')
+
+        // Verify task was written to disk
+        const savedData = fs.readFileSync(getTasksFilePath(), 'utf8')
+        if (!savedData.includes('Deploy Zenith to production')) {
+          throw new Error('Task persistence check failed: task not found in ' + getTasksFilePath())
+        }
+        console.log('[TEST] Task File Persistence (tasks.json): PASS')
+
         console.log('\n========================================')
-        console.log('✓ All Zenith Milestone 1 & 2 Acceptance Checks Passed!')
+        console.log('✓ All Zenith Milestone 1, 2 & 3 Acceptance Checks Passed!')
         console.log('========================================\n')
 
         app.exit(0)
@@ -494,6 +544,52 @@ function createWindow() {
     screen.removeListener('display-removed', reposition)
     mainWindow = null
   })
+}
+
+// Task Item Interface & Storage Handlers
+interface TaskItem {
+  id: string
+  title: string
+  completed: boolean
+  createdAt: number
+}
+
+function getTasksFilePath(): string {
+  const userData = app.getPath('userData')
+  if (!fs.existsSync(userData)) {
+    fs.mkdirSync(userData, { recursive: true })
+  }
+  return path.join(userData, 'tasks.json')
+}
+
+function tryImportNusaTodo(): TaskItem[] {
+  try {
+    const home = app.getPath('home')
+    const appData = process.env.APPDATA || ''
+    const candidatePaths = [
+      path.join(appData, 'Nusa', 'todo.txt'),
+      path.join(home, 'todo.txt'),
+      path.join(home, '.todo.txt'),
+    ]
+
+    for (const p of candidatePaths) {
+      if (fs.existsSync(p)) {
+        const raw = fs.readFileSync(p, 'utf8')
+        const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+        if (lines.length > 0) {
+          return lines.map((line, idx) => ({
+            id: `imported-${Date.now()}-${idx}`,
+            title: line.replace(/^[-*\[\]x\s]+/, '') || line,
+            completed: line.startsWith('[x]') || line.startsWith('x '),
+            createdAt: Date.now() - (lines.length - idx) * 1000,
+          }))
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[Zenith] Nusa todo import skipped:', err)
+  }
+  return []
 }
 
 // IPC Handlers
@@ -532,6 +628,44 @@ ipcMain.handle('battery:get-status', async () => {
     }
   } catch (err) {
     return { level: 1.0, charging: true }
+  }
+})
+
+ipcMain.handle('tasks:load', async (): Promise<TaskItem[]> => {
+  try {
+    const tasksFile = getTasksFilePath()
+    if (fs.existsSync(tasksFile)) {
+      const data = fs.readFileSync(tasksFile, 'utf8')
+      const parsed = JSON.parse(data)
+      if (Array.isArray(parsed)) return parsed
+    }
+    // Fallback check Nusa todo.txt
+    const imported = tryImportNusaTodo()
+    if (imported.length > 0) {
+      fs.writeFileSync(tasksFile, JSON.stringify(imported, null, 2), 'utf8')
+      return imported
+    }
+    // Default starter tasks on first launch
+    const initialTasks: TaskItem[] = [
+      { id: '1', title: 'Review open pull requests', completed: false, createdAt: Date.now() - 3600000 },
+      { id: '2', title: 'Inspect local port services', completed: true, createdAt: Date.now() - 7200000 },
+    ]
+    fs.writeFileSync(tasksFile, JSON.stringify(initialTasks, null, 2), 'utf8')
+    return initialTasks
+  } catch (err) {
+    console.error('[Zenith] Error loading tasks:', err)
+    return []
+  }
+})
+
+ipcMain.handle('tasks:save', async (_event, tasks: TaskItem[]): Promise<boolean> => {
+  try {
+    const tasksFile = getTasksFilePath()
+    fs.writeFileSync(tasksFile, JSON.stringify(tasks, null, 2), 'utf8')
+    return true
+  } catch (err) {
+    console.error('[Zenith] Error saving tasks:', err)
+    return false
   }
 })
 

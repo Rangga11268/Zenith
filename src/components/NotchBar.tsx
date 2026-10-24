@@ -12,7 +12,10 @@ import {
   Layers,
   Zap,
   AlertTriangle,
-  Bell
+  Bell,
+  Plus,
+  Check,
+  Trash2
 } from 'lucide-react'
 
 export type DynamicPillState = 'idle' | 'charging' | 'battery-low' | 'notification'
@@ -22,6 +25,13 @@ export interface NotificationData {
   appName?: string
   title: string
   body: string
+}
+
+export interface TaskItem {
+  id: string
+  title: string
+  completed: boolean
+  createdAt: number
 }
 
 // Track hit-testing state to prevent IPC thrashing and flickering
@@ -44,6 +54,11 @@ export const NotchBar: React.FC = () => {
     const now = new Date()
     return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
   })
+
+  // Task manager state
+  const [tasks, setTasks] = useState<TaskItem[]>([])
+  const [newTaskTitle, setNewTaskTitle] = useState('')
+  const [taskFilter, setTaskFilter] = useState<'all' | 'active' | 'completed'>('all')
 
   const containerRef = useRef<HTMLDivElement>(null)
   const morphTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -71,9 +86,18 @@ export const NotchBar: React.FC = () => {
     }
   }, [])
 
-  // Initial hit-testing setup
+  // Initial hit-testing & task loading
   useEffect(() => {
     updateHitTesting(false)
+
+    window.devnotch?.loadTasks?.().then((loadedTasks) => {
+      if (Array.isArray(loadedTasks)) {
+        setTasks(loadedTasks)
+      }
+    }).catch((err) => {
+      console.warn('[Zenith] Could not load initial tasks:', err)
+    })
+
     return () => {
       isMouseIgnored = null
       if (morphTimeoutRef.current) clearTimeout(morphTimeoutRef.current)
@@ -184,6 +208,20 @@ export const NotchBar: React.FC = () => {
     }
   }, [])
 
+  // Test event listener for programmatic task addition
+  useEffect(() => {
+    const handleTestAddTask = (e: Event) => {
+      const customEvent = e as CustomEvent<{ title: string }>
+      if (customEvent.detail?.title) {
+        handleAddTask(customEvent.detail.title)
+      }
+    }
+    window.addEventListener('zenith:test-add-task', handleTestAddTask)
+    return () => {
+      window.removeEventListener('zenith:test-add-task', handleTestAddTask)
+    }
+  }, [tasks])
+
   // Handle Escape key and outside blur to smoothly collapse deck
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -210,6 +248,46 @@ export const NotchBar: React.FC = () => {
   const handleQuit = (e: React.MouseEvent) => {
     e.stopPropagation()
     window.devnotch?.closeApp()
+  }
+
+  // Task Operations
+  const handleAddTask = (titleOrEvent?: React.FormEvent | React.MouseEvent | string) => {
+    if (titleOrEvent && typeof titleOrEvent !== 'string' && 'preventDefault' in titleOrEvent) {
+      titleOrEvent.preventDefault()
+    }
+    const targetTitle = typeof titleOrEvent === 'string' ? titleOrEvent : newTaskTitle
+    const trimmed = targetTitle.trim()
+    if (!trimmed) return
+    const newTask: TaskItem = {
+      id: Date.now().toString(),
+      title: trimmed,
+      completed: false,
+      createdAt: Date.now(),
+    }
+    const updated = [newTask, ...tasks]
+    setTasks(updated)
+    setNewTaskTitle('')
+    window.devnotch?.saveTasks?.(updated)
+  }
+
+  const handleToggleTask = (id: string) => {
+    const updated = tasks.map((t) =>
+      t.id === id ? { ...t, completed: !t.completed } : t
+    )
+    setTasks(updated)
+    window.devnotch?.saveTasks?.(updated)
+  }
+
+  const handleDeleteTask = (id: string) => {
+    const updated = tasks.filter((t) => t.id !== id)
+    setTasks(updated)
+    window.devnotch?.saveTasks?.(updated)
+  }
+
+  const handleClearCompleted = () => {
+    const updated = tasks.filter((t) => !t.completed)
+    setTasks(updated)
+    window.devnotch?.saveTasks?.(updated)
   }
 
   // Dynamic pill sizing and border styles
@@ -506,13 +584,132 @@ export const NotchBar: React.FC = () => {
               )}
 
               {activeTab === 'tasks' && (
-                <div className="h-full flex flex-col items-center justify-center text-center p-6 bg-white/[0.01] border border-white/[0.06] rounded-xl">
-                  <div className="w-10 h-10 rounded-full bg-white/[0.04] flex items-center justify-center mb-3">
-                    <CheckSquare className="w-5 h-5 text-zinc-400" />
+                <div className="h-full flex flex-col justify-between p-3.5 bg-white/[0.01] border border-white/[0.06] rounded-xl">
+                  {/* Tasks Header Bar */}
+                  <div className="flex items-center justify-between pb-2 border-b border-white/[0.06]">
+                    <div className="flex items-center gap-2">
+                      <CheckSquare className="w-4 h-4 text-sky-400" />
+                      <span className="text-xs font-semibold text-zinc-200 tracking-tight">
+                        Daily Quick Tasks
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-[10px] text-zinc-400">
+                        {tasks.filter((t) => t.completed).length}/{tasks.length} done
+                      </span>
+                      {tasks.some((t) => t.completed) && (
+                        <button
+                          type="button"
+                          onClick={handleClearCompleted}
+                          className="text-[10px] text-zinc-500 hover:text-zinc-300 font-mono transition-colors"
+                        >
+                          Clear Done
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-sm font-medium text-zinc-200">Daily Quick Tasks</div>
-                  <div className="text-xs text-zinc-500 max-w-xs mt-1">
-                    No active tasks in queue. Task persistence layer initializes in Milestone 3.
+
+                  {/* Add Task Input Form */}
+                  <form onSubmit={handleAddTask} className="flex items-center gap-2 my-2.5">
+                    <input
+                      type="text"
+                      data-testid="new-task-input"
+                      value={newTaskTitle}
+                      onChange={(e) => setNewTaskTitle(e.target.value)}
+                      placeholder="Add task and press Enter..."
+                      className="flex-1 bg-white/[0.03] border border-white/10 rounded-lg px-3 py-1.5 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-sky-500/50"
+                    />
+                    <button
+                      type="submit"
+                      data-testid="add-task-btn"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        handleAddTask()
+                      }}
+                      className="p-1.5 rounded-lg bg-white/10 hover:bg-white/15 text-zinc-200 transition-colors"
+                      title="Add task"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </form>
+
+                  {/* Scrollable Tasks List */}
+                  <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 max-h-[175px]">
+                    {tasks.length === 0 ? (
+                      <div className="h-full flex flex-col items-center justify-center text-center p-4">
+                        <span className="text-xs text-zinc-500 font-mono">
+                          No tasks in queue. Type above to add one.
+                        </span>
+                      </div>
+                    ) : (
+                      tasks
+                        .filter((t) => {
+                          if (taskFilter === 'active') return !t.completed
+                          if (taskFilter === 'completed') return t.completed
+                          return true
+                        })
+                        .map((task) => (
+                          <div
+                            key={task.id}
+                            data-testid={`task-item-${task.id}`}
+                            className="group flex items-center justify-between p-2 rounded-lg bg-white/[0.02] border border-white/[0.04] hover:border-white/10 transition-colors"
+                          >
+                            <button
+                              type="button"
+                              data-testid="task-toggle"
+                              onClick={() => handleToggleTask(task.id)}
+                              className="flex items-center gap-2.5 text-left flex-1 min-w-0"
+                            >
+                              <div
+                                className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+                                  task.completed
+                                    ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400'
+                                    : 'border-white/20 hover:border-white/40'
+                                }`}
+                              >
+                                {task.completed && <Check className="w-3 h-3 text-emerald-400" />}
+                              </div>
+                              <span
+                                className={`text-xs truncate transition-colors ${
+                                  task.completed ? 'line-through text-zinc-500' : 'text-zinc-200'
+                                }`}
+                              >
+                                {task.title}
+                              </span>
+                            </button>
+                            <button
+                              type="button"
+                              data-testid="task-delete"
+                              onClick={() => handleDeleteTask(task.id)}
+                              className="opacity-0 group-hover:opacity-100 p-1 text-zinc-500 hover:text-red-400 transition-opacity"
+                              title="Delete task"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))
+                    )}
+                  </div>
+
+                  {/* Filter Status Bar */}
+                  <div className="pt-2 border-t border-white/[0.06] flex items-center justify-between text-[10px] font-mono text-zinc-500">
+                    <div className="flex items-center gap-1.5">
+                      {(['all', 'active', 'completed'] as const).map((f) => (
+                        <button
+                          key={f}
+                          type="button"
+                          onClick={() => setTaskFilter(f)}
+                          className={`capitalize px-1.5 py-0.5 rounded transition-colors ${
+                            taskFilter === f
+                              ? 'bg-white/10 text-zinc-200'
+                              : 'hover:text-zinc-300'
+                          }`}
+                        >
+                          {f}
+                        </button>
+                      ))}
+                    </div>
+                    <span>%APPDATA%/Zenith/tasks.json</span>
                   </div>
                 </div>
               )}
