@@ -709,6 +709,15 @@ function createWindow() {
             copyBtn.click();
             await new Promise(r => setTimeout(r, 100));
 
+            // Collapse deck back to notch pill for subsequent pill state tests
+            const collapseBtn = root.querySelector('button[title="Collapse"]');
+            if (collapseBtn) {
+              collapseBtn.click();
+            } else {
+              window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+            }
+            await new Promise(r => setTimeout(r, 200));
+
             return { ok: true };
           })()
         `)
@@ -718,8 +727,55 @@ function createWindow() {
         }
         console.log('[TEST] AI Copilot & One-Click Copy: PASS')
 
+        // Test Milestone 8: Dynamic Battery & Charging Mac Style Morphs
+        console.log('[TEST] Testing Milestone 8 Dynamic Battery & Charging Morphs...')
+        const battery8TestResult = await mainWindow!.webContents.executeJavaScript(`
+          (async function() {
+            const root = document.getElementById('root');
+
+            // 1. Test Charger Connected Blooming (asymmetric emerald glow, Fast Charging)
+            window.dispatchEvent(new CustomEvent('zenith:simulate-battery', {
+              detail: { charging: true, level: 90 }
+            }));
+            await new Promise(r => setTimeout(r, 150));
+            const pill = root.querySelector('[data-testid="notch-pill"]');
+            if (!pill) return { ok: false, err: 'Notch pill missing' };
+            const textCharging = pill.textContent || '';
+            if (!textCharging.includes('Power Connected') || !textCharging.includes('Fast Charging')) {
+              return { ok: false, err: 'Charging bloom text missing or incorrect. Got: ' + textCharging };
+            }
+
+            // 2. Test Battery Low (Amber warning)
+            window.dispatchEvent(new CustomEvent('zenith:simulate-battery', {
+              detail: { charging: false, level: 18 }
+            }));
+            await new Promise(r => setTimeout(r, 150));
+            const textLow = pill.textContent || '';
+            if (!textLow.includes('Battery Low')) {
+              return { ok: false, err: 'Battery Low text missing or incorrect. Got: ' + textLow };
+            }
+
+            // 3. Test Battery Critical (Red alert with gentle shake)
+            window.dispatchEvent(new CustomEvent('zenith:simulate-battery', {
+              detail: { charging: false, level: 8 }
+            }));
+            await new Promise(r => setTimeout(r, 150));
+            const textCrit = pill.textContent || '';
+            if (!textCrit.includes('Battery Critical')) {
+              return { ok: false, err: 'Battery Critical text missing or incorrect. Got: ' + textCrit };
+            }
+
+            return { ok: true };
+          })()
+        `)
+
+        if (!battery8TestResult.ok) {
+          throw new Error('Milestone 8 Battery test failed: ' + battery8TestResult.err)
+        }
+        console.log('[TEST] Milestone 8 Dynamic Battery & Charging Morphs: PASS')
+
         console.log('\n========================================')
-        console.log('✓ All Zenith Milestone 1, 2, 3, 4, 5, 6 & 7 Acceptance Checks Passed!')
+        console.log('✓ All Zenith Milestone 1, 2, 3, 4, 5, 6, 7 & 8 Acceptance Checks Passed!')
         console.log('========================================\n')
 
         app.exit(0)
@@ -1274,6 +1330,21 @@ app.whenReady().then(() => {
     })
   } catch (err) {
     console.warn('[Zenith] Could not register global shortcut:', err)
+  }
+
+  try {
+    powerMonitor.on('on-ac', () => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('battery:status-changed', { charging: true })
+      }
+    })
+    powerMonitor.on('on-battery', () => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('battery:status-changed', { charging: false })
+      }
+    })
+  } catch (err) {
+    console.warn('[Zenith] powerMonitor listeners not supported on this platform:', err)
   }
 
   app.on('activate', () => {

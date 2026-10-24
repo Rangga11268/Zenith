@@ -80,10 +80,10 @@ Project Scaffold (Vite + Electron + TS + Tailwind)
 - [x] *Acceptance Criteria:* Mengetik "bikin fungsi debounce di JS" langsung memberikan snippet yang bisa disalin ke clipboard dalam 1 klik (lulus acceptance check otomatis).
 
 ### Milestone 8: Dynamic Battery & Charging Animation (Mac Style)
-- [ ] Integrasi `navigator.getBattery()` dengan listener real-time.
-- [ ] UI animasi mekar asimetris saat charger terhubung (ikon petir hijau + persentase baterai).
-- [ ] UI peringatan baterai lemah (Amber 20% & Merah 10%) dengan animasi gentle shake.
-- [ ] *Acceptance Criteria:* Mencolokkan charger laptop langsung memicu animasi mekar Dynamic Island baterai selama 3 detik.
+- [x] Integrasi `navigator.getBattery()` dengan listener real-time dan Electron PowerMonitor hardware events (`battery:status-changed`).
+- [x] UI animasi mekar asimetris saat charger terhubung (ikon petir hijau berdenyut + persentase baterai + label Fast Charging).
+- [x] UI peringatan baterai bertingkat: Amber 20% (Battery Low) & Merah 10% (Battery Critical) dengan animasi gentle shake.
+- [x] *Acceptance Criteria:* Mencolokkan charger laptop langsung memicu animasi mekar Dynamic Island baterai selama 3.5 detik (lulus verifikasi 8 milestone otomatis).
 
 ### Milestone 9: Notification Morphing & macOS Glass Styling
 - [ ] Desain styling *MacBook Notch* dengan sudut telinga melengkung (*concave inverted fillet ears*).

@@ -80,6 +80,9 @@ export interface ZenithAPI {
   triggerNotification: (notif: NotificationPayload) => void
   onNotification: (callback: (notif: NotificationPayload) => void) => () => void
   getBatteryStatus: () => Promise<BatteryStatus>
+  onBatteryStatusChanged: (
+    callback: (status: { charging: boolean; level?: number }) => void
+  ) => () => void
   loadTasks: () => Promise<TaskItem[]>
   saveTasks: (tasks: TaskItem[]) => Promise<boolean>
   getMediaInfo: () => Promise<MediaInfo | null>
@@ -115,6 +118,13 @@ const api: ZenithAPI = {
     }
   },
   getBatteryStatus: () => ipcRenderer.invoke('battery:get-status'),
+  onBatteryStatusChanged: (callback: (status: { charging: boolean; level?: number }) => void) => {
+    const handler = (_event: any, data: { charging: boolean; level?: number }) => callback(data)
+    ipcRenderer.on('battery:status-changed', handler)
+    return () => {
+      ipcRenderer.removeListener('battery:status-changed', handler)
+    }
+  },
   loadTasks: () => ipcRenderer.invoke('tasks:load'),
   saveTasks: (tasks: TaskItem[]) => ipcRenderer.invoke('tasks:save', tasks),
   getMediaInfo: () => ipcRenderer.invoke('media:get-status'),

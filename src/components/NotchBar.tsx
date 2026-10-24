@@ -27,7 +27,7 @@ import {
   Settings2
 } from 'lucide-react'
 
-export type DynamicPillState = 'idle' | 'charging' | 'battery-low' | 'notification'
+export type DynamicPillState = 'idle' | 'charging' | 'battery-low' | 'battery-critical' | 'notification'
 
 export interface AIResponse {
   answer: string
@@ -98,7 +98,7 @@ export const NotchBar: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'dev' | 'media' | 'tasks' | 'ai'>('dev')
   const [pillState, setPillState] = useState<DynamicPillState>('idle')
   const [batteryLevel, setBatteryLevel] = useState<number>(100)
-  const [, setIsCharging] = useState<boolean>(false)
+  const [isCharging, setIsCharging] = useState<boolean>(false)
   const [activeNotif, setActiveNotif] = useState<NotificationData | null>(null)
   const [timeStr, setTimeStr] = useState(() => {
     const now = new Date()
@@ -223,8 +223,20 @@ export const NotchBar: React.FC = () => {
     }
   }, [])
 
-  // Battery monitoring (Native Chromium Battery API + Test Simulation)
+  // Battery monitoring (Native Chromium Battery API + PowerMonitor IPC + Test Simulation)
   useEffect(() => {
+    const handleBatteryUpdate = (charging: boolean, level: number) => {
+      setBatteryLevel(level)
+      setIsCharging(charging)
+      if (charging) {
+        triggerMorph('charging', 3500)
+      } else if (level <= 10) {
+        triggerMorph('battery-critical', 4000)
+      } else if (level <= 20) {
+        triggerMorph('battery-low', 4000)
+      }
+    }
+
     if (typeof navigator !== 'undefined' && 'getBattery' in navigator) {
       // @ts-expect-error - Chromium native BatteryManager
       navigator.getBattery().then((battery: any) => {
@@ -233,40 +245,33 @@ export const NotchBar: React.FC = () => {
         setIsCharging(battery.charging)
 
         battery.addEventListener('chargingchange', () => {
-          setIsCharging(battery.charging)
-          if (battery.charging) {
-            triggerMorph('charging', 3500)
-          }
+          handleBatteryUpdate(battery.charging, Math.round(battery.level * 100))
         })
         battery.addEventListener('levelchange', () => {
-          const lvl = Math.round(battery.level * 100)
-          setBatteryLevel(lvl)
-          if (!battery.charging && lvl <= 20) {
-            triggerMorph('battery-low', 4000)
-          }
+          handleBatteryUpdate(battery.charging, Math.round(battery.level * 100))
         })
       }).catch(() => {})
     }
 
+    // Hardware power events from Electron PowerMonitor
+    const cleanupPower = window.devnotch?.onBatteryStatusChanged?.((status) => {
+      handleBatteryUpdate(status.charging, status.level ?? batteryLevel)
+    })
+
     const handleSimulateBattery = (e: Event) => {
       const customEvent = e as CustomEvent<{ charging: boolean; level: number }>
       const { charging, level } = customEvent.detail || {}
-      if (typeof level === 'number') setBatteryLevel(level)
-      if (typeof charging === 'boolean') {
-        setIsCharging(charging)
-        if (charging) {
-          triggerMorph('charging', 3500)
-        } else if (level <= 20) {
-          triggerMorph('battery-low', 4000)
-        }
-      }
+      const curLvl = typeof level === 'number' ? level : batteryLevel
+      const curCharging = typeof charging === 'boolean' ? charging : isCharging
+      handleBatteryUpdate(curCharging, curLvl)
     }
     window.addEventListener('zenith:simulate-battery', handleSimulateBattery)
 
     return () => {
+      cleanupPower?.()
       window.removeEventListener('zenith:simulate-battery', handleSimulateBattery)
     }
-  }, [])
+  }, [batteryLevel, isCharging])
 
   // System Notifications (IPC & Test Simulation)
   useEffect(() => {
@@ -546,9 +551,11 @@ export const NotchBar: React.FC = () => {
     }
     switch (pillState) {
       case 'charging':
-        return 'w-[330px] h-[38px] rounded-b-[18px] rounded-t-none cursor-pointer border-emerald-500/30 shadow-[0_12px_28px_rgba(16,185,129,0.15)]'
+        return 'w-[340px] h-[40px] rounded-b-[20px] rounded-t-none cursor-pointer border-emerald-500/40 shadow-[0_12px_28px_rgba(16,185,129,0.2)]'
+      case 'battery-critical':
+        return 'w-[320px] h-[40px] rounded-b-[20px] rounded-t-none cursor-pointer border-red-500/50 shadow-[0_12px_28px_rgba(239,68,68,0.25)] animate-gentle-shake'
       case 'battery-low':
-        return 'w-[310px] h-[38px] rounded-b-[18px] rounded-t-none cursor-pointer border-amber-500/30 shadow-[0_12px_28px_rgba(245,158,11,0.15)]'
+        return 'w-[310px] h-[38px] rounded-b-[18px] rounded-t-none cursor-pointer border-amber-500/30 shadow-[0_12px_28px_rgba(245,158,11,0.15)] animate-gentle-shake'
       case 'notification':
         return 'w-[360px] h-[42px] rounded-b-[20px] rounded-t-none cursor-pointer border-sky-500/30 shadow-[0_12px_28px_rgba(56,189,248,0.15)]'
       case 'idle':
@@ -581,23 +588,55 @@ export const NotchBar: React.FC = () => {
         {!isExpanded ? (
           <>
             {pillState === 'charging' && (
-              <div className="w-[330px] h-[38px] flex items-center justify-between pointer-events-auto shrink-0 px-3.5">
-                <div className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center">
+              <div className="w-[340px] h-[40px] flex items-center justify-between pointer-events-auto shrink-0 px-4">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center animate-pulse">
                     <Zap className="w-3 h-3 text-emerald-400 fill-emerald-400" />
                   </span>
-                  <span className="text-xs font-semibold text-emerald-400 tracking-tight">
-                    Power Connected
-                  </span>
+                  <div className="flex flex-col text-left">
+                    <span className="text-xs font-semibold text-emerald-400 tracking-tight leading-none">
+                      Power Connected
+                    </span>
+                    <span className="text-[9px] font-mono text-zinc-400 leading-tight">
+                      Fast Charging
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-3 rounded-[3px] border border-emerald-500/40 p-0.5 flex items-center">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-3.5 rounded-[4px] border border-emerald-500/50 p-0.5 flex items-center bg-black/40">
                     <div
-                      className="h-full bg-emerald-400 rounded-xs transition-all duration-500"
+                      className="h-full bg-emerald-400 rounded-xs transition-all duration-700 ease-out"
                       style={{ width: `${Math.min(100, Math.max(10, batteryLevel))}%` }}
                     />
                   </div>
-                  <span className="font-mono text-xs text-zinc-300 font-semibold">{batteryLevel}%</span>
+                  <span className="font-mono text-xs text-emerald-300 font-bold">{batteryLevel}%</span>
+                </div>
+              </div>
+            )}
+
+            {pillState === 'battery-critical' && (
+              <div className="w-[320px] h-[40px] flex items-center justify-between pointer-events-auto shrink-0 px-4">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-red-500/20 border border-red-500/50 flex items-center justify-center">
+                    <AlertTriangle className="w-3 h-3 text-red-400" />
+                  </span>
+                  <div className="flex flex-col text-left">
+                    <span className="text-xs font-bold text-red-400 tracking-tight leading-none">
+                      Battery Critical
+                    </span>
+                    <span className="text-[9px] font-mono text-zinc-400 leading-tight">
+                      Connect Charger Immediately
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-3 rounded-[3px] border border-red-500/60 p-0.5 flex items-center bg-black/40">
+                    <div
+                      className="h-full bg-red-500 rounded-xs transition-all duration-500"
+                      style={{ width: `${Math.min(100, Math.max(5, batteryLevel))}%` }}
+                    />
+                  </div>
+                  <span className="font-mono text-xs text-red-400 font-bold">{batteryLevel}%</span>
                 </div>
               </div>
             )}
@@ -605,7 +644,7 @@ export const NotchBar: React.FC = () => {
             {pillState === 'battery-low' && (
               <div className="w-[310px] h-[38px] flex items-center justify-between pointer-events-auto shrink-0 px-3.5">
                 <div className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center">
+                  <span className="w-5 h-5 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center">
                     <AlertTriangle className="w-3 h-3 text-amber-400" />
                   </span>
                   <span className="text-xs font-semibold text-amber-400 tracking-tight">
@@ -613,7 +652,7 @@ export const NotchBar: React.FC = () => {
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-7 h-3 rounded-[3px] border border-amber-500/40 p-0.5 flex items-center">
+                  <div className="w-7 h-3 rounded-[3px] border border-amber-500/40 p-0.5 flex items-center bg-black/40">
                     <div
                       className="h-full bg-amber-400 rounded-xs transition-all duration-500"
                       style={{ width: `${Math.min(100, Math.max(5, batteryLevel))}%` }}

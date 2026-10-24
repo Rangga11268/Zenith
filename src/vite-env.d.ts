@@ -80,6 +80,9 @@ export interface ZenithAPI {
   triggerNotification: (notif: NotificationPayload) => void
   onNotification: (callback: (notif: NotificationPayload) => void) => () => void
   getBatteryStatus: () => Promise<BatteryStatus>
+  onBatteryStatusChanged: (
+    callback: (status: { charging: boolean; level?: number }) => void
+  ) => () => void
   loadTasks: () => Promise<TaskItem[]>
   saveTasks: (tasks: TaskItem[]) => Promise<boolean>
   getMediaInfo: () => Promise<MediaInfo | null>
