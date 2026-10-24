@@ -48,6 +48,16 @@ export interface MediaInfo {
   source?: string
 }
 
+export interface GitStatusResult {
+  branch: string
+  modified: number
+  untracked: number
+  staged: number
+  lastCommit: string
+  isRepo: boolean
+  repoPath: string
+}
+
 function formatTime(seconds: number): string {
   if (!seconds || isNaN(seconds)) return '00:00'
   const m = Math.floor(seconds / 60)
@@ -85,6 +95,17 @@ export const NotchBar: React.FC = () => {
   const [mediaInfo, setMediaInfo] = useState<MediaInfo | null>(null)
   const [lyrics, setLyrics] = useState<string | null>(null)
   const [isLoadingLyrics, setIsLoadingLyrics] = useState(false)
+
+  // Git Status HUD state
+  const [gitStatus, setGitStatus] = useState<GitStatusResult>({
+    branch: 'main',
+    modified: 0,
+    untracked: 0,
+    staged: 0,
+    lastCommit: '',
+    isRepo: true,
+    repoPath: '',
+  })
 
   const containerRef = useRef<HTMLDivElement>(null)
   const morphTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -309,6 +330,25 @@ export const NotchBar: React.FC = () => {
     }
     window.devnotch?.controlMedia?.(action)
   }
+
+  // Git Status HUD polling
+  useEffect(() => {
+    let timer: ReturnType<typeof setInterval> | null = null
+    const refreshGit = () => {
+      window.devnotch?.getGitStatus?.().then((res) => {
+        if (res) setGitStatus(res)
+      }).catch(() => {})
+    }
+
+    refreshGit()
+    if (isExpanded && activeTab === 'dev') {
+      timer = setInterval(refreshGit, 5000)
+    }
+
+    return () => {
+      if (timer) clearInterval(timer)
+    }
+  }, [isExpanded, activeTab])
 
   // Handle Escape key and outside blur to smoothly collapse deck
   useEffect(() => {
@@ -568,15 +608,47 @@ export const NotchBar: React.FC = () => {
                         <span className="flex items-center gap-1.5 font-medium">
                           <GitBranch className="w-3.5 h-3.5 text-sky-400" /> Git Status
                         </span>
-                        <span className="font-mono text-[10px] text-emerald-400 flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> clean
+                        {gitStatus.modified + gitStatus.untracked + gitStatus.staged === 0 ? (
+                          <span className="font-mono text-[10px] text-emerald-400 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> clean
+                          </span>
+                        ) : (
+                          <span className="font-mono text-[10px] text-amber-400 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span> dirty
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-baseline justify-between">
+                        <div className="font-mono text-sm font-semibold text-zinc-100 truncate">
+                          {gitStatus.branch || 'detached'}
+                        </div>
+                        {gitStatus.lastCommit && (
+                          <span
+                            className="text-[10px] text-zinc-500 font-mono truncate max-w-[130px]"
+                            title={gitStatus.lastCommit}
+                          >
+                            {gitStatus.lastCommit}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-zinc-500 font-mono mt-1 flex items-center justify-between">
+                        <span>
+                          {gitStatus.modified + gitStatus.untracked + gitStatus.staged === 0
+                            ? '0 uncommitted files'
+                            : `${gitStatus.modified + gitStatus.untracked + gitStatus.staged} uncommitted (${gitStatus.modified}M, ${gitStatus.untracked}?, ${gitStatus.staged}S)`}
                         </span>
-                      </div>
-                      <div className="font-mono text-sm font-semibold text-zinc-100 truncate">
-                        main
-                      </div>
-                      <div className="text-[11px] text-zinc-500 font-mono mt-1">
-                        0 uncommitted files
+                        <button
+                          type="button"
+                          onClick={() => {
+                            window.devnotch?.getGitStatus?.().then((res) => {
+                              if (res) setGitStatus(res)
+                            })
+                          }}
+                          className="hover:text-zinc-300 transition-colors ml-1"
+                          title="Refresh Git status"
+                        >
+                          ↻
+                        </button>
                       </div>
                     </div>
 

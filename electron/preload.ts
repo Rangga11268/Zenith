@@ -34,6 +34,16 @@ export interface LyricsData {
   syncedLyrics?: string
 }
 
+export interface GitStatusResult {
+  branch: string
+  modified: number
+  untracked: number
+  staged: number
+  lastCommit: string
+  isRepo: boolean
+  repoPath: string
+}
+
 export interface ZenithAPI {
   expandWindow: (expanded: boolean) => Promise<void>
   closeApp: () => Promise<void>
@@ -47,6 +57,7 @@ export interface ZenithAPI {
   getMediaInfo: () => Promise<MediaInfo | null>
   controlMedia: (action: 'play' | 'pause' | 'next' | 'prev') => Promise<void>
   getLyrics: (title: string, artist: string) => Promise<LyricsData | null>
+  getGitStatus: (targetPath?: string) => Promise<GitStatusResult>
 }
 
 const api: ZenithAPI = {
@@ -78,6 +89,8 @@ const api: ZenithAPI = {
     ipcRenderer.invoke('media:control', action),
   getLyrics: (title: string, artist: string) =>
     ipcRenderer.invoke('media:get-lyrics', title, artist),
+  getGitStatus: (targetPath?: string) =>
+    ipcRenderer.invoke('git:get-status', targetPath),
 }
 
 contextBridge.exposeInMainWorld('devnotch', api)

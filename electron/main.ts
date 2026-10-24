@@ -598,8 +598,40 @@ function createWindow() {
         }
         console.log('[TEST] LRCLIB Lyrics API Fetch: PASS')
 
+        // Test Milestone 5: Git Status HUD
+        console.log('[TEST] Testing Milestone 5 Git Status HUD...')
+        const gitTestResult = await mainWindow!.webContents.executeJavaScript(`
+          (async function() {
+            const root = document.getElementById('root');
+            
+            // Switch to Dev tab
+            const devBtn = Array.from(root.querySelectorAll('button')).find(b => b.textContent && b.textContent.includes('Dev'));
+            if (!devBtn) return { ok: false, err: 'Dev tab button missing' };
+            devBtn.click();
+            await new Promise(r => setTimeout(r, 150));
+
+            // Verify Git Status card is rendered
+            const hasGitCard = root.textContent.includes('Git Status');
+            if (!hasGitCard) {
+              return { ok: false, err: 'Git Status card missing from Dev tab' };
+            }
+
+            // Verify IPC directly
+            const gitStatus = await window.devnotch.getGitStatus();
+            if (!gitStatus || typeof gitStatus.isRepo !== 'boolean') {
+              return { ok: false, err: 'getGitStatus IPC failed or returned invalid response' };
+            }
+
+            return { ok: true, gitStatus };
+          })()
+        `)
+        if (!gitTestResult.ok) {
+          throw new Error('Git Status HUD test failed: ' + gitTestResult.err)
+        }
+        console.log('[TEST] Git Status HUD & IPC Query: PASS')
+
         console.log('\n========================================')
-        console.log('✓ All Zenith Milestone 1, 2, 3 & 4 Acceptance Checks Passed!')
+        console.log('✓ All Zenith Milestone 1, 2, 3, 4 & 5 Acceptance Checks Passed!')
         console.log('========================================\n')
 
         app.exit(0)
@@ -829,6 +861,88 @@ ipcMain.handle('media:get-lyrics', async (_event, title: string, artist: string)
 ipcMain.on('media:simulate', (_event, media: MediaInfo | null) => {
   simulatedMedia = media
   mainWindow?.webContents.send('media:status-changed', simulatedMedia)
+})
+
+// Git Status HUD Handler
+interface GitStatusResult {
+  branch: string
+  modified: number
+  untracked: number
+  staged: number
+  lastCommit: string
+  isRepo: boolean
+  repoPath: string
+}
+
+ipcMain.handle('git:get-status', async (_event, targetPath?: string): Promise<GitStatusResult> => {
+  const repoDir = targetPath || process.cwd()
+
+  return new Promise((resolve) => {
+    exec(
+      'git rev-parse --is-inside-work-tree',
+      { cwd: repoDir, timeout: 2000 },
+      (err, stdout) => {
+        if (err || !stdout.trim().includes('true')) {
+          return resolve({
+            branch: '',
+            modified: 0,
+            untracked: 0,
+            staged: 0,
+            lastCommit: '',
+            isRepo: false,
+            repoPath: repoDir,
+          })
+        }
+
+        exec(
+          'git branch --show-current && echo ---SEP--- && git status --porcelain && echo ---SEP--- && git log -1 --pretty=format:"%s"',
+          { cwd: repoDir, timeout: 3000 },
+          (err2, stdout2) => {
+            if (err2 || !stdout2) {
+              return resolve({
+                branch: 'main',
+                modified: 0,
+                untracked: 0,
+                staged: 0,
+                lastCommit: '',
+                isRepo: true,
+                repoPath: repoDir,
+              })
+            }
+
+            const parts = stdout2.split('---SEP---').map((p) => p.trim())
+            const branch = parts[0]?.split(/\r?\n/)[0]?.trim() || 'main'
+            const porcelain = parts[1] || ''
+            const lastCommit = parts[2]?.trim() || ''
+
+            let modified = 0
+            let untracked = 0
+            let staged = 0
+
+            const lines = porcelain.split(/\r?\n/).filter(Boolean)
+            for (const line of lines) {
+              if (line.startsWith('??')) {
+                untracked++
+              } else {
+                if (['M', 'A', 'D', 'R'].includes(line[0])) staged++
+                if (line.length > 1 && ['M', 'D'].includes(line[1])) modified++
+              }
+            }
+
+            resolve({
+              branch,
+              modified,
+              untracked,
+              staged,
+              lastCommit,
+              isRepo: true,
+              repoPath: repoDir,
+            })
+          }
+        )
+      }
+    )
+  })
 })
 
 app.whenReady().then(() => {

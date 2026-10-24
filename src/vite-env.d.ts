@@ -34,6 +34,16 @@ export interface LyricsData {
   syncedLyrics?: string
 }
 
+export interface GitStatusResult {
+  branch: string
+  modified: number
+  untracked: number
+  staged: number
+  lastCommit: string
+  isRepo: boolean
+  repoPath: string
+}
+
 export interface ZenithAPI {
   expandWindow: (expanded: boolean) => Promise<void>
   closeApp: () => Promise<void>
@@ -47,6 +57,7 @@ export interface ZenithAPI {
   getMediaInfo: () => Promise<MediaInfo | null>
   controlMedia: (action: 'play' | 'pause' | 'next' | 'prev') => Promise<void>
   getLyrics: (title: string, artist: string) => Promise<LyricsData | null>
+  getGitStatus: (targetPath?: string) => Promise<GitStatusResult>
 }
 
 declare global {

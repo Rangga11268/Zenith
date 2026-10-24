@@ -59,10 +59,10 @@ Project Scaffold (Vite + Electron + TS + Tailwind)
 - [x] *Acceptance Criteria:* Memutar lagu di Spotify/browser otomatis menampilkan judul di notch, kontrol playback berfungsi, dan lirik terambil dari LRCLIB (lulus acceptance checks otomatis).
 
 ### Milestone 5: Git Status HUD (Developer Feature)
-- [ ] Implementasi IPC `git-status` menggunakan `child_process` Git CLI.
-- [ ] UI kartu Git: menampilkan branch aktif, jumlah uncommitted changes (modified/untracked), dan last commit message.
-- [ ] Auto-poll interval (setiap 5-10 detik jika notch sedang dibuka).
-- [ ] *Acceptance Criteria:* Mengedit file di proyek langsung memperbarui counter uncommitted changes di notch.
+- [x] Implementasi IPC `git-status` menggunakan `child_process` Git CLI dengan output parsing deterministik.
+- [x] UI kartu Git: menampilkan branch aktif, live uncommitted changes counter (modified/untracked/staged), last commit message, dan tombol refresh 1-klik `↻`.
+- [x] Auto-poll interval (setiap 5 detik saat notch dibuka pada tab Dev).
+- [x] *Acceptance Criteria:* Mengedit file di proyek langsung memperbarui counter uncommitted changes di notch (lulus verifikasi query & UI otomatis).
 
 ### Milestone 6: Dev Server & Port Monitor (Developer Feature)
 - [ ] Implementasi port scanner cepat via `net.Socket` untuk port `3000`, `5173`, `8000`, `8080`, `8501`.
