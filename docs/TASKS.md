@@ -86,10 +86,10 @@ Project Scaffold (Vite + Electron + TS + Tailwind)
 - [x] *Acceptance Criteria:* Mencolokkan charger laptop langsung memicu animasi mekar Dynamic Island baterai selama 3.5 detik (lulus verifikasi 8 milestone otomatis).
 
 ### Milestone 9: Notification Morphing & macOS Glass Styling
-- [ ] Desain styling *MacBook Notch* dengan sudut telinga melengkung (*concave inverted fillet ears*).
-- [ ] Implementasi animasi *bloom notification* saat ada pesan/peringatan sistem.
-- [ ] Dynamic click-through hit testing (`setIgnoreMouseEvents`).
-- [ ] *Acceptance Criteria:* Notifikasi masuk membuat notch membesar lembut menampilkan pesan lalu mengempis kembali.
+- [x] Desain styling *MacBook Notch* dengan sudut telinga melengkung (*concave inverted fillet ears* SVG terintegrasi di kiri dan kanan notch).
+- [x] Implementasi animasi *bloom notification* (`w-[370px] h-[44px]`) saat ada pesan/peringatan sistem dengan glow cyan dan app badge.
+- [x] Dynamic click-through hit testing (`setIgnoreMouseEvents`) menjaga transparansi klik desktop di luar notch.
+- [x] *Acceptance Criteria:* Notifikasi masuk membuat notch membesar lembut menampilkan pesan lalu mengempis kembali (lulus verifikasi 9 acceptance checks otomatis).
 
 ### Milestone 10: Code Snippet Shelf, Hotkeys & Windows Auto-Launch
 - [ ] Penyimpanan template kode / perintah terminal favorit.

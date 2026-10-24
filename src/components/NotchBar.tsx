@@ -557,7 +557,7 @@ export const NotchBar: React.FC = () => {
       case 'battery-low':
         return 'w-[310px] h-[38px] rounded-b-[18px] rounded-t-none cursor-pointer border-amber-500/30 shadow-[0_12px_28px_rgba(245,158,11,0.15)] animate-gentle-shake'
       case 'notification':
-        return 'w-[360px] h-[42px] rounded-b-[20px] rounded-t-none cursor-pointer border-sky-500/30 shadow-[0_12px_28px_rgba(56,189,248,0.15)]'
+        return 'w-[370px] h-[44px] rounded-b-[20px] rounded-t-none cursor-pointer border-sky-500/40 shadow-[0_16px_36px_rgba(56,189,248,0.2)]'
       case 'idle':
       default:
         return 'w-[260px] h-[38px] rounded-b-[18px] rounded-t-none cursor-pointer hover:border-white/20'
@@ -566,9 +566,18 @@ export const NotchBar: React.FC = () => {
 
   return (
     <div className="w-full flex justify-center items-start select-none pt-0">
-      <div
-        ref={containerRef}
-        data-testid="notch-pill"
+      <div className="relative flex items-start justify-center">
+        {/* Left Inverted Fillet Ear (MacBook Notch Concave Curve) */}
+        <div className="absolute top-0 -left-[12px] w-[12px] h-[12px] pointer-events-none z-10">
+          <svg className="w-[12px] h-[12px] overflow-visible" viewBox="0 0 12 12" fill="none">
+            <path d="M0 0 H12 V12 C12 5.373 6.627 0 0 0 Z" fill="#090A0F" />
+            <path d="M0 0 C6.627 0 12 5.373 12 12" stroke="rgba(255,255,255,0.1)" strokeWidth="1" fill="none" />
+          </svg>
+        </div>
+
+        <div
+          ref={containerRef}
+          data-testid="notch-pill"
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         onMouseMove={handleMouseEnter}
@@ -664,13 +673,13 @@ export const NotchBar: React.FC = () => {
             )}
 
             {pillState === 'notification' && (
-              <div className="w-[360px] h-[42px] flex items-center justify-between pointer-events-auto shrink-0 px-3.5">
+              <div className="w-[370px] h-[44px] flex items-center justify-between pointer-events-auto shrink-0 px-4">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <div className="w-6 h-6 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center shrink-0">
-                    <Bell className="w-3.5 h-3.5 text-sky-400" />
+                  <div className="w-6 h-6 rounded-lg bg-sky-500/15 border border-sky-500/30 flex items-center justify-center shrink-0 shadow-[0_0_12px_rgba(56,189,248,0.25)]">
+                    <Bell className="w-3.5 h-3.5 text-sky-300" />
                   </div>
                   <div className="flex flex-col text-left overflow-hidden">
-                    <span className="text-xs font-semibold text-zinc-200 truncate">
+                    <span className="text-xs font-semibold text-zinc-100 truncate">
                       {activeNotif?.title || 'System Notification'}
                     </span>
                     <span className="text-[10px] text-zinc-400 truncate">
@@ -678,7 +687,7 @@ export const NotchBar: React.FC = () => {
                     </span>
                   </div>
                 </div>
-                <span className="text-[9px] font-mono uppercase tracking-wider text-zinc-500 shrink-0 ml-2">
+                <span className="text-[9px] font-mono uppercase tracking-wider text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded border border-sky-500/20 shrink-0 ml-2 font-medium">
                   {activeNotif?.appName || 'System'}
                 </span>
               </div>
@@ -1460,6 +1469,15 @@ export const NotchBar: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Right Inverted Fillet Ear (MacBook Notch Concave Curve) */}
+      <div className="absolute top-0 -right-[12px] w-[12px] h-[12px] pointer-events-none z-10">
+        <svg className="w-[12px] h-[12px] overflow-visible" viewBox="0 0 12 12" fill="none">
+          <path d="M12 0 H0 V12 C0 5.373 5.373 0 12 0 Z" fill="#090A0F" />
+          <path d="M12 0 C5.373 0 0 5.373 0 12" stroke="rgba(255,255,255,0.1)" strokeWidth="1" fill="none" />
+        </svg>
+      </div>
     </div>
-  )
+  </div>
+)
 }

@@ -774,8 +774,48 @@ function createWindow() {
         }
         console.log('[TEST] Milestone 8 Dynamic Battery & Charging Morphs: PASS')
 
+        // Test Milestone 9: Notification Morphing & macOS Concave Ear Glass Styling
+        console.log('[TEST] Testing Milestone 9 Notification Morphing & macOS Glass Fillet Ears...')
+        const milestone9TestResult = await mainWindow!.webContents.executeJavaScript(`
+          (async function() {
+            const root = document.getElementById('root');
+
+            // 1. Verify macOS Concave Inverted Fillet Ears SVG presence
+            const leftEar = root.querySelector('svg path[d*="M0 0 H12"]');
+            const rightEar = root.querySelector('svg path[d*="M12 0 H0"]');
+            if (!leftEar || !rightEar) {
+              return { ok: false, err: 'macOS Concave Inverted Fillet Ears missing from DOM' };
+            }
+
+            // 2. Trigger notification bloom via IPC triggerNotification
+            window.devnotch.triggerNotification({
+              appName: 'GitHub',
+              title: 'Pull Request Merged',
+              body: 'Milestone 9 landed successfully'
+            });
+            await new Promise(r => setTimeout(r, 200));
+
+            const pill = root.querySelector('[data-testid="notch-pill"]');
+            if (!pill) return { ok: false, err: 'Notch pill missing' };
+            const text = pill.textContent || '';
+            const hasTitle = text.includes('Pull Request Merged');
+            const hasApp = text.includes('GITHUB') || text.includes('GitHub');
+
+            if (!hasTitle || !hasApp) {
+              return { ok: false, err: 'Notification bloom text missing. Got: ' + text };
+            }
+
+            return { ok: true };
+          })()
+        `)
+
+        if (!milestone9TestResult.ok) {
+          throw new Error('Milestone 9 test failed: ' + milestone9TestResult.err)
+        }
+        console.log('[TEST] Milestone 9 Notification Morphing & macOS Glass Fillet Ears: PASS')
+
         console.log('\n========================================')
-        console.log('✓ All Zenith Milestone 1, 2, 3, 4, 5, 6, 7 & 8 Acceptance Checks Passed!')
+        console.log('✓ All Zenith Milestone 1, 2, 3, 4, 5, 6, 7, 8 & 9 Acceptance Checks Passed!')
         console.log('========================================\n')
 
         app.exit(0)
