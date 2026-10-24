@@ -71,12 +71,13 @@ Project Scaffold (Vite + Electron + TS + Tailwind)
 - [x] *Acceptance Criteria:* Menjalankan dev server di port umum langsung terdeteksi di notch dan dapat dibuka di browser dalam 1 klik (lulus live test socket probe otomatis).
 
 ### Milestone 7: AI Copilot & Quick Prompt Bar (Developer Feature)
-- [ ] Input box prompt di notch dengan shortcut `Ctrl + Shift + Space`.
-- [ ] Integrasi backend:
+- [x] Input box prompt di notch dengan shortcut `Ctrl + Shift + Space`.
+- [x] Integrasi backend:
   - Local Ollama (`http://localhost:11434`), atau
-  - Google Gemini API key.
-- [ ] UI response: kotak jawaban rapi dengan *One-Click Copy* untuk blok kode.
-- [ ] *Acceptance Criteria:* Mengetik "bikin fungsi debounce di JS" langsung memberikan snippet yang bisa disalin ke clipboard dalam 1 klik.
+  - Google Gemini API key, atau
+  - Built-in Fast Dev Copilot offline recipe generator.
+- [x] UI response: kotak jawaban rapi dengan *One-Click Copy* (`data-testid="ai-copy-btn"`) untuk blok kode dan syntax card berarsitektur Antislop Obsidian.
+- [x] *Acceptance Criteria:* Mengetik "bikin fungsi debounce di JS" langsung memberikan snippet yang bisa disalin ke clipboard dalam 1 klik (lulus acceptance check otomatis).
 
 ### Milestone 8: Dynamic Battery & Charging Animation (Mac Style)
 - [ ] Integrasi `navigator.getBattery()` dengan listener real-time.

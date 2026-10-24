@@ -51,6 +51,27 @@ export interface PortStatus {
   url: string
 }
 
+export interface AIPromptOptions {
+  prompt: string
+  provider?: 'ollama' | 'gemini' | 'fast'
+  model?: string
+  apiKey?: string
+}
+
+export interface AIResponse {
+  answer: string
+  codeSnippet?: string
+  language?: string
+  provider: string
+}
+
+export interface AISettings {
+  provider: 'ollama' | 'gemini' | 'fast'
+  geminiApiKey?: string
+  ollamaModel?: string
+  ollamaEndpoint?: string
+}
+
 export interface ZenithAPI {
   expandWindow: (expanded: boolean) => Promise<void>
   closeApp: () => Promise<void>
@@ -67,6 +88,9 @@ export interface ZenithAPI {
   getGitStatus: (targetPath?: string) => Promise<GitStatusResult>
   scanLocalPorts: (ports?: number[]) => Promise<PortStatus[]>
   openExternal: (url: string) => Promise<void>
+  askAI: (options: AIPromptOptions) => Promise<AIResponse>
+  loadAISettings: () => Promise<AISettings>
+  saveAISettings: (settings: AISettings) => Promise<boolean>
 }
 
 const api: ZenithAPI = {
@@ -104,6 +128,12 @@ const api: ZenithAPI = {
     ipcRenderer.invoke('ports:scan', ports),
   openExternal: (url: string) =>
     ipcRenderer.invoke('shell:open-external', url),
+  askAI: (options: AIPromptOptions) =>
+    ipcRenderer.invoke('ai:ask', options),
+  loadAISettings: () =>
+    ipcRenderer.invoke('ai:load-settings'),
+  saveAISettings: (settings: AISettings) =>
+    ipcRenderer.invoke('ai:save-settings', settings),
 }
 
 contextBridge.exposeInMainWorld('devnotch', api)

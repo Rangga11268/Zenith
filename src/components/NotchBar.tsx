@@ -20,10 +20,21 @@ import {
   Pause,
   SkipForward,
   SkipBack,
-  ExternalLink
+  ExternalLink,
+  Bot,
+  Copy,
+  Sparkles,
+  Settings2
 } from 'lucide-react'
 
 export type DynamicPillState = 'idle' | 'charging' | 'battery-low' | 'notification'
+
+export interface AIResponse {
+  answer: string
+  codeSnippet?: string
+  language?: string
+  provider: string
+}
 
 export interface NotificationData {
   id?: string
@@ -118,6 +129,16 @@ export const NotchBar: React.FC = () => {
   // Dev Ports state
   const [ports, setPorts] = useState<PortStatus[]>([])
   const [isScanningPorts, setIsScanningPorts] = useState(false)
+
+  // AI Copilot state
+  const [aiPrompt, setAiPrompt] = useState('')
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiProvider, setAiProvider] = useState<'fast' | 'ollama' | 'gemini'>('fast')
+  const [aiApiKey, setAiApiKey] = useState('')
+  const [aiOllamaModel, setAiOllamaModel] = useState('codellama')
+  const [aiResponse, setAiResponse] = useState<AIResponse | null>(null)
+  const [copiedSnippet, setCopiedSnippet] = useState(false)
+  const [showAiSettings, setShowAiSettings] = useState(false)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const morphTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -454,6 +475,69 @@ export const NotchBar: React.FC = () => {
     setTasks(updated)
     window.devnotch?.saveTasks?.(updated)
   }
+
+  // AI Copilot operations & settings
+  useEffect(() => {
+    window.devnotch?.loadAISettings?.().then((settings) => {
+      if (settings) {
+        if (settings.provider) setAiProvider(settings.provider)
+        if (settings.geminiApiKey) setAiApiKey(settings.geminiApiKey)
+        if (settings.ollamaModel) setAiOllamaModel(settings.ollamaModel)
+      }
+    })
+  }, [])
+
+  const handleAskAI = async (promptOverride?: string) => {
+    const query = typeof promptOverride === 'string' ? promptOverride : aiPrompt
+    const trimmed = query.trim()
+    if (!trimmed || aiLoading) return
+    setAiLoading(true)
+    try {
+      const res = await window.devnotch?.askAI?.({
+        prompt: trimmed,
+        provider: aiProvider,
+        apiKey: aiApiKey,
+        model: aiOllamaModel,
+      })
+      if (res) {
+        setAiResponse(res)
+      }
+    } catch (err) {
+      console.error('[Zenith] AI execution error:', err)
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  const handleSaveAISettings = () => {
+    window.devnotch?.saveAISettings?.({
+      provider: aiProvider,
+      geminiApiKey: aiApiKey,
+      ollamaModel: aiOllamaModel,
+    })
+    setShowAiSettings(false)
+  }
+
+  const handleCopyCode = (snippet: string) => {
+    if (!snippet) return
+    navigator.clipboard.writeText(snippet)
+    setCopiedSnippet(true)
+    setTimeout(() => setCopiedSnippet(false), 2000)
+  }
+
+  useEffect(() => {
+    const handleTestAskAI = (e: Event) => {
+      const customEvent = e as CustomEvent<{ prompt: string }>
+      if (customEvent.detail?.prompt) {
+        setAiPrompt(customEvent.detail.prompt)
+        handleAskAI(customEvent.detail.prompt)
+      }
+    }
+    window.addEventListener('zenith:test-ask-ai', handleTestAskAI)
+    return () => {
+      window.removeEventListener('zenith:test-ask-ai', handleTestAskAI)
+    }
+  }, [aiProvider, aiApiKey, aiOllamaModel, aiPrompt, aiLoading])
 
   // Dynamic pill sizing and border styles
   const getPillDimensions = () => {
@@ -1125,22 +1209,200 @@ export const NotchBar: React.FC = () => {
               )}
 
               {activeTab === 'ai' && (
-                <div className="h-full flex flex-col justify-between p-4 bg-white/[0.01] border border-white/[0.06] rounded-xl">
-                  <div>
-                    <div className="flex items-center justify-between text-xs text-zinc-400 mb-2">
-                      <span className="font-medium text-zinc-300">Quick AI Copilot</span>
-                      <span className="font-mono text-[10px] text-zinc-500">Ollama & Gemini Bridge</span>
+                <div className="h-full flex flex-col justify-between p-3.5 bg-white/[0.01] border border-white/[0.06] rounded-xl overflow-hidden">
+                  {/* Top Header & Provider Controls */}
+                  <div className="flex flex-col gap-2 shrink-0">
+                    <div className="flex items-center justify-between text-xs text-zinc-400">
+                      <div className="flex items-center gap-1.5 font-medium text-zinc-200">
+                        <Bot className="w-4 h-4 text-sky-400" />
+                        <span>Quick AI Copilot</span>
+                      </div>
+                      <div className="flex items-center gap-1 font-mono text-[10px]">
+                        {(['fast', 'ollama', 'gemini'] as const).map((prov) => (
+                          <button
+                            key={prov}
+                            type="button"
+                            onClick={() => {
+                              setAiProvider(prov)
+                              window.devnotch?.saveAISettings?.({
+                                provider: prov,
+                                geminiApiKey: aiApiKey,
+                                ollamaModel: aiOllamaModel,
+                              })
+                            }}
+                            className={`px-2 py-0.5 rounded capitalize transition-all ${
+                              aiProvider === prov
+                                ? 'bg-sky-500/20 text-sky-300 border border-sky-500/40'
+                                : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.04]'
+                            }`}
+                          >
+                            {prov === 'fast' ? 'Fast Dev' : prov}
+                          </button>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => setShowAiSettings(!showAiSettings)}
+                          title="Configure API Keys & Models"
+                          className={`p-1 rounded transition-colors ${
+                            showAiSettings ? 'text-sky-400 bg-white/10' : 'text-zinc-500 hover:text-zinc-300'
+                          }`}
+                        >
+                          <Settings2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
-                    <input
-                      type="text"
-                      placeholder="Paste stack trace or request code transformation..."
-                      className="w-full bg-white/[0.04] border border-white/10 rounded-lg px-3 py-2 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-sky-500/50"
-                      readOnly
-                    />
+
+                    {/* Expandable Settings Drawer */}
+                    {showAiSettings && (
+                      <div className="p-2.5 rounded-lg bg-black/40 border border-white/10 flex flex-col gap-2 text-xs">
+                        {aiProvider === 'gemini' && (
+                          <div className="flex flex-col gap-1">
+                            <span className="text-[10px] text-zinc-400 font-mono">Gemini API Key</span>
+                            <input
+                              type="password"
+                              value={aiApiKey}
+                              onChange={(e) => setAiApiKey(e.target.value)}
+                              placeholder="AIzaSy..."
+                              className="w-full bg-white/[0.04] border border-white/10 rounded px-2 py-1 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-sky-500/50"
+                            />
+                          </div>
+                        )}
+                        {aiProvider === 'ollama' && (
+                          <div className="flex flex-col gap-1">
+                            <span className="text-[10px] text-zinc-400 font-mono">Ollama Model</span>
+                            <input
+                              type="text"
+                              value={aiOllamaModel}
+                              onChange={(e) => setAiOllamaModel(e.target.value)}
+                              placeholder="codellama, llama3, qwen2.5-coder..."
+                              className="w-full bg-white/[0.04] border border-white/10 rounded px-2 py-1 text-xs text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-sky-500/50"
+                            />
+                          </div>
+                        )}
+                        {aiProvider === 'fast' && (
+                          <p className="text-[11px] text-zinc-400">
+                            Fast Dev mode generates instant, offline developer recipes without external network calls.
+                          </p>
+                        )}
+                        <div className="flex justify-end">
+                          <button
+                            type="button"
+                            onClick={handleSaveAISettings}
+                            className="px-2.5 py-0.5 rounded bg-sky-500/20 text-sky-300 border border-sky-500/30 text-[11px] hover:bg-sky-500/30 font-medium"
+                          >
+                            Save Settings
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Prompt Input Form */}
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault()
+                        handleAskAI()
+                      }}
+                      className="flex items-center gap-1.5"
+                    >
+                      <div className="relative flex-1">
+                        <input
+                          data-testid="ai-prompt-input"
+                          type="text"
+                          value={aiPrompt}
+                          onChange={(e) => setAiPrompt(e.target.value)}
+                          placeholder="Ask Copilot (e.g. 'bikin fungsi debounce di JS')..."
+                          className="w-full bg-white/[0.04] border border-white/10 rounded-lg pl-3 pr-8 py-2 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-sky-500/50 transition-colors"
+                        />
+                      </div>
+                      <button
+                        type="submit"
+                        disabled={aiLoading || !aiPrompt.trim()}
+                        className="px-3 py-2 rounded-lg bg-sky-500/20 text-sky-300 border border-sky-500/30 hover:bg-sky-500/30 disabled:opacity-40 disabled:hover:bg-sky-500/20 transition-all flex items-center gap-1 text-xs font-medium shrink-0"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>Send</span>
+                      </button>
+                    </form>
                   </div>
-                  <div className="text-[11px] text-zinc-500 flex items-center justify-between font-mono pt-2 border-t border-white/[0.06]">
+
+                  {/* Body Content / Response or Quick Prompts */}
+                  <div className="flex-1 my-2 min-h-0 overflow-y-auto">
+                    {aiLoading ? (
+                      <div className="h-full flex flex-col items-center justify-center gap-2 text-zinc-400">
+                        <Sparkles className="w-5 h-5 text-sky-400 animate-spin" />
+                        <span className="text-xs font-mono">Generating response...</span>
+                      </div>
+                    ) : aiResponse ? (
+                      <div className="h-full flex flex-col gap-2 p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.08]">
+                        <div className="flex items-center justify-between text-[11px] text-zinc-400 border-b border-white/[0.06] pb-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono text-sky-400 font-semibold">{aiResponse.provider}</span>
+                            {aiResponse.language && (
+                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-white/[0.06] font-mono text-zinc-400">
+                                {aiResponse.language}
+                              </span>
+                            )}
+                          </div>
+                          {aiResponse.codeSnippet && (
+                            <button
+                              type="button"
+                              data-testid="ai-copy-btn"
+                              onClick={() => handleCopyCode(aiResponse.codeSnippet!)}
+                              className="flex items-center gap-1 text-[11px] font-mono text-zinc-300 hover:text-white px-2 py-0.5 rounded bg-white/[0.06] hover:bg-white/10 border border-white/10 transition-colors cursor-pointer"
+                            >
+                              {copiedSnippet ? (
+                                <>
+                                  <Check className="w-3 h-3 text-emerald-400" />
+                                  <span className="text-emerald-400">Copied!</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="w-3 h-3 text-zinc-400" />
+                                  <span>Copy Code</span>
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </div>
+
+                        <p className="text-xs text-zinc-300 leading-relaxed font-sans">{aiResponse.answer}</p>
+
+                        {aiResponse.codeSnippet && (
+                          <pre className="p-2.5 rounded bg-[#040508] border border-white/[0.06] text-[11px] font-mono text-sky-200 overflow-x-auto max-h-[140px] select-text">
+                            <code>{aiResponse.codeSnippet}</code>
+                          </pre>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="h-full flex flex-col justify-center items-center gap-2 p-3 text-center">
+                        <span className="text-xs text-zinc-400">Quick Developer Recipes:</span>
+                        <div className="flex flex-wrap justify-center gap-1.5">
+                          {[
+                            'bikin fungsi debounce di JS',
+                            'throttle helper TS',
+                            'fetch retry backoff',
+                          ].map((rec) => (
+                            <button
+                              key={rec}
+                              type="button"
+                              onClick={() => {
+                                setAiPrompt(rec)
+                                handleAskAI(rec)
+                              }}
+                              className="px-2.5 py-1 rounded bg-white/[0.03] border border-white/[0.08] hover:border-sky-500/40 text-[11px] font-mono text-zinc-300 hover:text-sky-300 transition-all cursor-pointer"
+                            >
+                              {rec}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Bottom Hotkey hint */}
+                  <div className="text-[10px] text-zinc-500 flex items-center justify-between font-mono pt-1.5 border-t border-white/[0.06] shrink-0">
                     <span>Global Hotkey: Ctrl + Shift + Space</span>
-                    <span className="text-zinc-400">Ready for Milestone 7</span>
+                    <span className="text-zinc-400 font-mono">1-Click Code Transfer</span>
                   </div>
                 </div>
               )}
