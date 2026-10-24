@@ -19,6 +19,21 @@ export interface TaskItem {
   createdAt: number
 }
 
+export interface MediaInfo {
+  title: string
+  artist: string
+  album?: string
+  isPlaying: boolean
+  duration: number
+  position: number
+  source?: string
+}
+
+export interface LyricsData {
+  plainLyrics?: string
+  syncedLyrics?: string
+}
+
 export interface ZenithAPI {
   expandWindow: (expanded: boolean) => Promise<void>
   closeApp: () => Promise<void>
@@ -29,6 +44,9 @@ export interface ZenithAPI {
   getBatteryStatus: () => Promise<BatteryStatus>
   loadTasks: () => Promise<TaskItem[]>
   saveTasks: (tasks: TaskItem[]) => Promise<boolean>
+  getMediaInfo: () => Promise<MediaInfo | null>
+  controlMedia: (action: 'play' | 'pause' | 'next' | 'prev') => Promise<void>
+  getLyrics: (title: string, artist: string) => Promise<LyricsData | null>
 }
 
 const api: ZenithAPI = {
@@ -55,6 +73,11 @@ const api: ZenithAPI = {
   getBatteryStatus: () => ipcRenderer.invoke('battery:get-status'),
   loadTasks: () => ipcRenderer.invoke('tasks:load'),
   saveTasks: (tasks: TaskItem[]) => ipcRenderer.invoke('tasks:save', tasks),
+  getMediaInfo: () => ipcRenderer.invoke('media:get-status'),
+  controlMedia: (action: 'play' | 'pause' | 'next' | 'prev') =>
+    ipcRenderer.invoke('media:control', action),
+  getLyrics: (title: string, artist: string) =>
+    ipcRenderer.invoke('media:get-lyrics', title, artist),
 }
 
 contextBridge.exposeInMainWorld('devnotch', api)

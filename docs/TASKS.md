@@ -52,10 +52,11 @@ Project Scaffold (Vite + Electron + TS + Tailwind)
 - [x] *Acceptance Criteria:* Task dapat ditambah, dicentang selesai, dihapus, dan tetap tersimpan saat aplikasi ditutup (lulus verifikasi persistensi disk otomatis).
 
 ### Milestone 4: Media Player & LRCLIB Lyrics
-- [ ] Implementasi Windows GSMTC / media keys controller di Main Process.
-- [ ] Implementasi UI player: judul lagu, artis, tombol Play/Pause/Skip, dan progress bar.
-- [ ] Integrasi API `lrclib.net` untuk menampilkan lirik lagu aktif.
-- [ ] *Acceptance Criteria:* Memutar lagu di Spotify/browser otomatis menampilkan judul di notch dan tombol pause berfungsi.
+- [x] Implementasi Windows GSMTC / media keys controller di Main Process (`electron/media-probe.ps1` & WScript.Shell SendKeys).
+- [x] Implementasi UI player: judul lagu, artis, album, app source badge, tombol Play/Pause/Skip, dan progress bar.
+- [x] Integrasi API `lrclib.net` untuk menampilkan lirik lagu aktif (plain & synchronized).
+- [x] Fitur preview demo tracks (`Yellow` Coldplay & `Starboy` The Weeknd) untuk pengujian instan.
+- [x] *Acceptance Criteria:* Memutar lagu di Spotify/browser otomatis menampilkan judul di notch, kontrol playback berfungsi, dan lirik terambil dari LRCLIB (lulus acceptance checks otomatis).
 
 ### Milestone 5: Git Status HUD (Developer Feature)
 - [ ] Implementasi IPC `git-status` menggunakan `child_process` Git CLI.

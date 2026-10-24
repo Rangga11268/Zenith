@@ -15,7 +15,11 @@ import {
   Bell,
   Plus,
   Check,
-  Trash2
+  Trash2,
+  Play,
+  Pause,
+  SkipForward,
+  SkipBack
 } from 'lucide-react'
 
 export type DynamicPillState = 'idle' | 'charging' | 'battery-low' | 'notification'
@@ -32,6 +36,23 @@ export interface TaskItem {
   title: string
   completed: boolean
   createdAt: number
+}
+
+export interface MediaInfo {
+  title: string
+  artist: string
+  album?: string
+  isPlaying: boolean
+  duration: number
+  position: number
+  source?: string
+}
+
+function formatTime(seconds: number): string {
+  if (!seconds || isNaN(seconds)) return '00:00'
+  const m = Math.floor(seconds / 60)
+  const s = Math.floor(seconds % 60)
+  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
 }
 
 // Track hit-testing state to prevent IPC thrashing and flickering
@@ -59,6 +80,11 @@ export const NotchBar: React.FC = () => {
   const [tasks, setTasks] = useState<TaskItem[]>([])
   const [newTaskTitle, setNewTaskTitle] = useState('')
   const [taskFilter, setTaskFilter] = useState<'all' | 'active' | 'completed'>('all')
+
+  // Media Player state
+  const [mediaInfo, setMediaInfo] = useState<MediaInfo | null>(null)
+  const [lyrics, setLyrics] = useState<string | null>(null)
+  const [isLoadingLyrics, setIsLoadingLyrics] = useState(false)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const morphTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -221,6 +247,68 @@ export const NotchBar: React.FC = () => {
       window.removeEventListener('zenith:test-add-task', handleTestAddTask)
     }
   }, [tasks])
+
+  // Media Player Simulation & GSMTC Polling
+  useEffect(() => {
+    const handleSimulateMedia = (e: Event) => {
+      const customEvent = e as CustomEvent<MediaInfo | null>
+      setMediaInfo(customEvent.detail)
+    }
+    window.addEventListener('zenith:simulate-media', handleSimulateMedia)
+
+    let timer: ReturnType<typeof setInterval> | null = null
+    const checkMedia = () => {
+      window.devnotch?.getMediaInfo?.().then((info) => {
+        if (info && info.title) {
+          setMediaInfo(info)
+        }
+      }).catch(() => {})
+    }
+
+    if (activeTab === 'media' && isExpanded) {
+      checkMedia()
+      timer = setInterval(checkMedia, 3000)
+    }
+
+    return () => {
+      window.removeEventListener('zenith:simulate-media', handleSimulateMedia)
+      if (timer) clearInterval(timer)
+    }
+  }, [activeTab, isExpanded])
+
+  // Synchronized Lyrics auto-fetch via LRCLIB
+  useEffect(() => {
+    if (!mediaInfo?.title) {
+      setLyrics(null)
+      return
+    }
+    setIsLoadingLyrics(true)
+    window.devnotch?.getLyrics?.(mediaInfo.title, mediaInfo.artist || '')
+      .then((data) => {
+        if (data?.plainLyrics) {
+          setLyrics(data.plainLyrics)
+        } else if (data?.syncedLyrics) {
+          const cleaned = data.syncedLyrics.replace(/\[\d+:\d+\.\d+\]\s*/g, '')
+          setLyrics(cleaned)
+        } else {
+          setLyrics('No lyrics found on LRCLIB for this track.')
+        }
+      })
+      .catch(() => {
+        setLyrics('Unable to load lyrics.')
+      })
+      .finally(() => {
+        setIsLoadingLyrics(false)
+      })
+  }, [mediaInfo?.title, mediaInfo?.artist])
+
+  const handleMediaControl = (action: 'play' | 'pause' | 'next' | 'prev') => {
+    if (mediaInfo) {
+      if (action === 'play') setMediaInfo({ ...mediaInfo, isPlaying: true })
+      if (action === 'pause') setMediaInfo({ ...mediaInfo, isPlaying: false })
+    }
+    window.devnotch?.controlMedia?.(action)
+  }
 
   // Handle Escape key and outside blur to smoothly collapse deck
   useEffect(() => {
@@ -572,14 +660,171 @@ export const NotchBar: React.FC = () => {
               )}
 
               {activeTab === 'media' && (
-                <div className="h-full flex flex-col items-center justify-center text-center p-6 bg-white/[0.01] border border-white/[0.06] rounded-xl">
-                  <div className="w-10 h-10 rounded-full bg-white/[0.04] flex items-center justify-center mb-3">
-                    <Music className="w-5 h-5 text-zinc-400" />
-                  </div>
-                  <div className="text-sm font-medium text-zinc-200">No Media Playing</div>
-                  <div className="text-xs text-zinc-500 max-w-xs mt-1">
-                    Windows GSMTC is listening for Spotify, Chrome, or Edge playback sessions.
-                  </div>
+                <div className="h-full flex flex-col justify-between">
+                  {!mediaInfo || !mediaInfo.title ? (
+                    <div className="h-full flex flex-col justify-between p-4 bg-white/[0.01] border border-white/[0.06] rounded-xl text-center">
+                      <div className="flex flex-col items-center justify-center flex-1 py-4">
+                        <div className="w-12 h-12 rounded-full bg-white/[0.04] flex items-center justify-center mb-3">
+                          <Music className="w-6 h-6 text-zinc-400" />
+                        </div>
+                        <div className="text-sm font-semibold text-zinc-200">No Media Playing</div>
+                        <div className="text-xs text-zinc-500 max-w-xs mt-1">
+                          Windows GSMTC is listening for Spotify, Chrome, or Edge playback sessions.
+                        </div>
+                      </div>
+                      {/* Quick Demo Previews */}
+                      <div className="pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs">
+                        <span className="text-zinc-500 font-mono text-[11px]">Preview Demo Tracks:</span>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMediaInfo({
+                                title: 'Yellow',
+                                artist: 'Coldplay',
+                                album: 'Parachutes',
+                                isPlaying: true,
+                                duration: 269,
+                                position: 45,
+                                source: 'Spotify.exe'
+                              })
+                            }}
+                            className="px-2 py-1 rounded bg-white/[0.04] hover:bg-white/[0.08] text-[10px] font-mono text-emerald-400 transition-colors"
+                          >
+                            ▶ Yellow (Coldplay)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMediaInfo({
+                                title: 'Starboy',
+                                artist: 'The Weeknd',
+                                album: 'Starboy',
+                                isPlaying: true,
+                                duration: 230,
+                                position: 60,
+                                source: 'Chrome.exe'
+                              })
+                            }}
+                            className="px-2 py-1 rounded bg-white/[0.04] hover:bg-white/[0.08] text-[10px] font-mono text-sky-400 transition-colors"
+                          >
+                            ▶ Starboy
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="h-full flex flex-col justify-between p-3.5 bg-white/[0.01] border border-white/[0.06] rounded-xl">
+                      {/* Player Header & Info */}
+                      <div className="flex items-center justify-between pb-2 border-b border-white/[0.06]">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+                            <Music className="w-4 h-4 text-emerald-400" />
+                          </div>
+                          <div className="flex flex-col text-left overflow-hidden">
+                            <span className="text-xs font-semibold text-zinc-100 truncate">
+                              {mediaInfo.title}
+                            </span>
+                            <span className="text-[11px] text-zinc-400 truncate">
+                              {mediaInfo.artist || 'Unknown Artist'} {mediaInfo.album ? `• ${mediaInfo.album}` : ''}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="font-mono text-[9px] uppercase tracking-wider text-emerald-400/80 px-1.5 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">
+                            {mediaInfo.source?.replace('.exe', '') || 'Media'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setMediaInfo(null)}
+                            className="text-[10px] text-zinc-500 hover:text-zinc-300 font-mono transition-colors"
+                          >
+                            Reset
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Synchronized Lyrics Box */}
+                      <div className="flex-1 my-2 overflow-y-auto max-h-[140px] p-2.5 rounded-lg bg-black/40 border border-white/[0.04] text-center">
+                        {isLoadingLyrics ? (
+                          <div className="h-full flex items-center justify-center text-xs text-zinc-500 font-mono">
+                            Fetching synchronized lyrics from LRCLIB...
+                          </div>
+                        ) : lyrics ? (
+                          <div className="space-y-1.5 text-xs font-mono text-zinc-300 select-text leading-relaxed">
+                            {lyrics.split('\n').filter(Boolean).map((line, idx) => (
+                              <p
+                                key={idx}
+                                className={idx === 0 || idx === 1 ? 'text-emerald-400 font-semibold' : 'text-zinc-400/80'}
+                              >
+                                {line}
+                              </p>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="h-full flex items-center justify-center text-xs text-zinc-500 font-mono">
+                            No lyrics available for this song.
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Progress & Controls Bar */}
+                      <div className="space-y-2 pt-1 border-t border-white/[0.06]">
+                        {/* Progress bar */}
+                        <div className="flex items-center gap-2 text-[10px] font-mono text-zinc-500">
+                          <span>{formatTime(mediaInfo.position || 0)}</span>
+                          <div className="flex-1 h-1 bg-white/10 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-emerald-400 rounded-full transition-all duration-300"
+                              style={{
+                                width: `${mediaInfo.duration ? Math.min(100, ((mediaInfo.position || 0) / mediaInfo.duration) * 100) : 35}%`,
+                              }}
+                            />
+                          </div>
+                          <span>{formatTime(mediaInfo.duration || 0)}</span>
+                        </div>
+
+                        {/* Playback Controls */}
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-mono text-zinc-500">LRCLIB Synced</span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              data-testid="media-prev"
+                              onClick={() => handleMediaControl('prev')}
+                              className="p-1.5 rounded-md text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
+                              title="Previous Track"
+                            >
+                              <SkipBack className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              data-testid="media-play-pause"
+                              onClick={() => handleMediaControl(mediaInfo.isPlaying ? 'pause' : 'play')}
+                              className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+                              title={mediaInfo.isPlaying ? 'Pause' : 'Play'}
+                            >
+                              {mediaInfo.isPlaying ? (
+                                <Pause className="w-4 h-4 text-emerald-400 fill-emerald-400" />
+                              ) : (
+                                <Play className="w-4 h-4 text-emerald-400 fill-emerald-400 ml-0.5" />
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              data-testid="media-next"
+                              onClick={() => handleMediaControl('next')}
+                              className="p-1.5 rounded-md text-zinc-400 hover:text-white hover:bg-white/10 transition-colors"
+                              title="Next Track"
+                            >
+                              <SkipForward className="w-4 h-4" />
+                            </button>
+                          </div>
+                          <span className="text-[10px] font-mono text-zinc-500">Win Media Key</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
