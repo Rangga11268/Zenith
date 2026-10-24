@@ -72,6 +72,14 @@ export interface AISettings {
   ollamaEndpoint?: string
 }
 
+export interface SnippetItem {
+  id: string
+  title: string
+  content: string
+  language?: string
+  createdAt: number
+}
+
 export interface ZenithAPI {
   expandWindow: (expanded: boolean) => Promise<void>
   closeApp: () => Promise<void>
@@ -94,6 +102,10 @@ export interface ZenithAPI {
   askAI: (options: AIPromptOptions) => Promise<AIResponse>
   loadAISettings: () => Promise<AISettings>
   saveAISettings: (settings: AISettings) => Promise<boolean>
+  loadSnippets: () => Promise<SnippetItem[]>
+  saveSnippets: (snippets: SnippetItem[]) => Promise<boolean>
+  getAutoLaunch: () => Promise<boolean>
+  setAutoLaunch: (enabled: boolean) => Promise<boolean>
 }
 
 declare global {

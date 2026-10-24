@@ -72,6 +72,14 @@ export interface AISettings {
   ollamaEndpoint?: string
 }
 
+export interface SnippetItem {
+  id: string
+  title: string
+  content: string
+  language?: string
+  createdAt: number
+}
+
 export interface ZenithAPI {
   expandWindow: (expanded: boolean) => Promise<void>
   closeApp: () => Promise<void>
@@ -94,6 +102,10 @@ export interface ZenithAPI {
   askAI: (options: AIPromptOptions) => Promise<AIResponse>
   loadAISettings: () => Promise<AISettings>
   saveAISettings: (settings: AISettings) => Promise<boolean>
+  loadSnippets: () => Promise<SnippetItem[]>
+  saveSnippets: (snippets: SnippetItem[]) => Promise<boolean>
+  getAutoLaunch: () => Promise<boolean>
+  setAutoLaunch: (enabled: boolean) => Promise<boolean>
 }
 
 const api: ZenithAPI = {
@@ -144,6 +156,14 @@ const api: ZenithAPI = {
     ipcRenderer.invoke('ai:load-settings'),
   saveAISettings: (settings: AISettings) =>
     ipcRenderer.invoke('ai:save-settings', settings),
+  loadSnippets: () =>
+    ipcRenderer.invoke('shelf:load-snippets'),
+  saveSnippets: (snippets: SnippetItem[]) =>
+    ipcRenderer.invoke('shelf:save-snippets', snippets),
+  getAutoLaunch: () =>
+    ipcRenderer.invoke('autolaunch:get'),
+  setAutoLaunch: (enabled: boolean) =>
+    ipcRenderer.invoke('autolaunch:set', enabled),
 }
 
 contextBridge.exposeInMainWorld('devnotch', api)

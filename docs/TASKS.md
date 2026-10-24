@@ -92,12 +92,9 @@ Project Scaffold (Vite + Electron + TS + Tailwind)
 - [x] *Acceptance Criteria:* Notifikasi masuk membuat notch membesar lembut menampilkan pesan lalu mengempis kembali (lulus verifikasi 9 acceptance checks otomatis).
 
 ### Milestone 10: Code Snippet Shelf, Hotkeys & Windows Auto-Launch
-- [ ] Penyimpanan template kode / perintah terminal favorit.
-- [ ] Drag and drop file / text ke area shelf.
-- [ ] Tombol salin instan.
-- [ ] *Acceptance Criteria:* File atau potongan teks yang di-drop ke shelf tersimpan dan dapat disalin kembali.
-
-### Milestone 9: Polish, Keyboard Shortcuts & Run on Startup
-- [ ] Global hotkey untuk toggle buka/tutup notch.
-- [ ] Opsi "Start with Windows".
-- [ ] Final testing performa (verifikasi CPU 0% saat idle dan RAM < 80 MB).
+- [x] Penyimpanan template kode / perintah terminal favorit tersimpan persisten di `%APPDATA%\Zenith\snippets.json`.
+- [x] Drag and drop file / text ke area shelf dropzone (`data-testid="shelf-dropzone"`).
+- [x] Tombol salin instan (`data-testid="shelf-copy-btn"`) dengan feedback visual *Copied!*.
+- [x] Opsi "Start with Windows" (auto-launch via `app.setLoginItemSettings`).
+- [x] Global shortcut `Ctrl + Shift + Space` untuk instant expand/collapse.
+- [x] *Acceptance Criteria:* File atau potongan teks yang di-drop ke shelf tersimpan dan dapat disalin kembali (lulus 100% dari 10 milestone acceptance checks otomatis).

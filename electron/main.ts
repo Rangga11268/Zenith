@@ -814,8 +814,72 @@ function createWindow() {
         }
         console.log('[TEST] Milestone 9 Notification Morphing & macOS Glass Fillet Ears: PASS')
 
+        // Test Milestone 10: Code Snippet Shelf, Drag & Drop, and Windows Auto-Launch
+        console.log('[TEST] Testing Milestone 10 Code Snippet Shelf & Windows Auto-Launch...')
+        const milestone10TestResult = await mainWindow!.webContents.executeJavaScript(`
+          (async function() {
+            const root = document.getElementById('root');
+
+            // 1. Expand deck if collapsed
+            const pill = root.querySelector('[data-testid="notch-pill"]');
+            if (pill) pill.click();
+            await new Promise(r => setTimeout(r, 150));
+
+            // 2. Switch to Shelf tab
+            const shelfBtn = Array.from(root.querySelectorAll('button')).find(b => b.textContent && b.textContent.includes('Shelf'));
+            if (!shelfBtn) return { ok: false, err: 'Shelf tab button missing' };
+            shelfBtn.click();
+            await new Promise(r => setTimeout(r, 150));
+
+            // 3. Verify dropzone and starter snippet presence
+            const dropzone = root.querySelector('[data-testid="shelf-dropzone"]');
+            if (!dropzone) return { ok: false, err: 'Shelf dropzone missing' };
+            const hasDefaultSnippet = root.textContent.includes('Git Amend Commit') || root.textContent.includes('Docker System Prune');
+            if (!hasDefaultSnippet) return { ok: false, err: 'Default shelf presets missing' };
+
+            // 4. Test adding a snippet via custom drop event
+            window.dispatchEvent(new CustomEvent('zenith:test-add-shelf', {
+              detail: {
+                title: 'Clean Untracked Files',
+                content: 'git clean -fd',
+                language: 'bash'
+              }
+            }));
+            await new Promise(r => setTimeout(r, 150));
+
+            const hasAddedSnippet = root.textContent.includes('Clean Untracked Files') && root.textContent.includes('git clean -fd');
+            if (!hasAddedSnippet) return { ok: false, err: 'Added snippet not found in shelf DOM' };
+
+            // 5. Test Copy button
+            const copyBtn = root.querySelector('button[data-testid="shelf-copy-btn"]');
+            if (!copyBtn) return { ok: false, err: 'Shelf copy button missing' };
+            copyBtn.click();
+            await new Promise(r => setTimeout(r, 100));
+
+            // 6. Test Auto-launch toggle
+            const autoLaunchCheckbox = root.querySelector('input[data-testid="auto-launch-toggle"]');
+            if (!autoLaunchCheckbox) return { ok: false, err: 'Auto-launch toggle checkbox missing' };
+            autoLaunchCheckbox.click();
+            await new Promise(r => setTimeout(r, 100));
+
+            return { ok: true };
+          })()
+        `)
+
+        if (!milestone10TestResult.ok) {
+          throw new Error('Milestone 10 test failed: ' + milestone10TestResult.err)
+        }
+        console.log('[TEST] Milestone 10 Code Snippet Shelf & Auto-Launch: PASS')
+
+        // Verify snippet was written to disk
+        const savedSnippetsData = fs.readFileSync(getSnippetsFilePath(), 'utf8')
+        if (!savedSnippetsData.includes('Clean Untracked Files')) {
+          throw new Error('Snippet persistence check failed: snippet not found in ' + getSnippetsFilePath())
+        }
+        console.log('[TEST] Shelf File Persistence (snippets.json): PASS')
+
         console.log('\n========================================')
-        console.log('✓ All Zenith Milestone 1, 2, 3, 4, 5, 6, 7, 8 & 9 Acceptance Checks Passed!')
+        console.log('✓ All Zenith Milestones 1 - 10 Acceptance Checks Passed! 100% COMPLETE!')
         console.log('========================================\n')
 
         app.exit(0)
@@ -1357,6 +1421,103 @@ ipcMain.handle('ai:ask', async (_event, options: AIPromptOptions): Promise<AIRes
   }
 
   return generateFastDevSnippet(prompt)
+})
+
+// Snippet Shelf & Auto-Launch Handlers
+export interface SnippetItem {
+  id: string
+  title: string
+  content: string
+  language?: string
+  createdAt: number
+}
+
+function getSnippetsFilePath(): string {
+  const userData = app.getPath('userData')
+  if (!fs.existsSync(userData)) {
+    fs.mkdirSync(userData, { recursive: true })
+  }
+  return path.join(userData, 'snippets.json')
+}
+
+const DEFAULT_SNIPPETS: SnippetItem[] = [
+  {
+    id: 'preset-1',
+    title: 'Git Amend Commit',
+    content: 'git commit --amend --no-edit',
+    language: 'bash',
+    createdAt: Date.now() - 3600000,
+  },
+  {
+    id: 'preset-2',
+    title: 'Docker System Prune',
+    content: 'docker system prune -af --volumes',
+    language: 'bash',
+    createdAt: Date.now() - 7200000,
+  },
+  {
+    id: 'preset-3',
+    title: 'Kill Port (Windows PowerShell)',
+    content: 'Stop-Process -Id (Get-NetTCPConnection -LocalPort 3000).OwningProcess -Force',
+    language: 'powershell',
+    createdAt: Date.now() - 10800000,
+  },
+  {
+    id: 'preset-4',
+    title: 'Vite React Tailwind CSS Base',
+    content: '@import "tailwindcss";\n@layer base { body { @apply bg-[#090A0F] text-zinc-100; } }',
+    language: 'css',
+    createdAt: Date.now() - 14400000,
+  },
+]
+
+ipcMain.handle('shelf:load-snippets', async (): Promise<SnippetItem[]> => {
+  try {
+    const p = getSnippetsFilePath()
+    if (fs.existsSync(p)) {
+      const data = JSON.parse(fs.readFileSync(p, 'utf8'))
+      if (Array.isArray(data)) return data
+    }
+    fs.writeFileSync(p, JSON.stringify(DEFAULT_SNIPPETS, null, 2), 'utf8')
+    return DEFAULT_SNIPPETS
+  } catch (err) {
+    console.warn('[Zenith] Could not load snippets, using defaults:', err)
+    return DEFAULT_SNIPPETS
+  }
+})
+
+ipcMain.handle('shelf:save-snippets', async (_event, snippets: SnippetItem[]): Promise<boolean> => {
+  try {
+    const p = getSnippetsFilePath()
+    fs.writeFileSync(p, JSON.stringify(snippets, null, 2), 'utf8')
+    return true
+  } catch (err) {
+    console.error('[Zenith] Could not save snippets:', err)
+    return false
+  }
+})
+
+ipcMain.handle('autolaunch:get', async (): Promise<boolean> => {
+  try {
+    const settings = app.getLoginItemSettings()
+    return settings.openAtLogin
+  } catch (err) {
+    console.warn('[Zenith] Could not get auto-launch status:', err)
+    return false
+  }
+})
+
+ipcMain.handle('autolaunch:set', async (_event, enabled: boolean): Promise<boolean> => {
+  try {
+    app.setLoginItemSettings({
+      openAtLogin: !!enabled,
+      path: process.execPath,
+    })
+    return true
+  } catch (err) {
+    console.error('[Zenith] Could not set auto-launch:', err)
+    return false
+  }
 })
 
 app.whenReady().then(() => {

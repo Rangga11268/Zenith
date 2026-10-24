@@ -24,10 +24,21 @@ import {
   Bot,
   Copy,
   Sparkles,
-  Settings2
+  Settings2,
+  FileCode,
+  FolderDown,
+  Clipboard
 } from 'lucide-react'
 
 export type DynamicPillState = 'idle' | 'charging' | 'battery-low' | 'battery-critical' | 'notification'
+
+export interface SnippetItem {
+  id: string
+  title: string
+  content: string
+  language?: string
+  createdAt: number
+}
 
 export interface AIResponse {
   answer: string
@@ -95,7 +106,7 @@ function updateHitTesting(interactive: boolean) {
 
 export const NotchBar: React.FC = () => {
   const [isExpanded, setIsExpanded] = useState(false)
-  const [activeTab, setActiveTab] = useState<'dev' | 'media' | 'tasks' | 'ai'>('dev')
+  const [activeTab, setActiveTab] = useState<'dev' | 'media' | 'tasks' | 'ai' | 'shelf'>('dev')
   const [pillState, setPillState] = useState<DynamicPillState>('idle')
   const [batteryLevel, setBatteryLevel] = useState<number>(100)
   const [isCharging, setIsCharging] = useState<boolean>(false)
@@ -139,6 +150,12 @@ export const NotchBar: React.FC = () => {
   const [aiResponse, setAiResponse] = useState<AIResponse | null>(null)
   const [copiedSnippet, setCopiedSnippet] = useState(false)
   const [showAiSettings, setShowAiSettings] = useState(false)
+
+  // Code Snippet Shelf & Auto-Launch state
+  const [snippets, setSnippets] = useState<SnippetItem[]>([])
+  const [copiedSnippetId, setCopiedSnippetId] = useState<string | null>(null)
+  const [isDraggingOver, setIsDraggingOver] = useState(false)
+  const [autoLaunchEnabled, setAutoLaunchEnabled] = useState(false)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const morphTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -544,6 +561,99 @@ export const NotchBar: React.FC = () => {
     }
   }, [aiProvider, aiApiKey, aiOllamaModel, aiPrompt, aiLoading])
 
+  // Shelf & Auto-Launch initial loading & operations
+  useEffect(() => {
+    window.devnotch?.loadSnippets?.().then((loaded) => {
+      if (Array.isArray(loaded)) setSnippets(loaded)
+    })
+    window.devnotch?.getAutoLaunch?.().then((enabled) => {
+      setAutoLaunchEnabled(!!enabled)
+    })
+  }, [])
+
+  const handleCopyShelfSnippet = (id: string, content: string) => {
+    if (!content) return
+    navigator.clipboard.writeText(content)
+    setCopiedSnippetId(id)
+    setTimeout(() => setCopiedSnippetId(null), 2000)
+  }
+
+  const handleDeleteShelfSnippet = (id: string) => {
+    const updated = snippets.filter((s) => s.id !== id)
+    setSnippets(updated)
+    window.devnotch?.saveSnippets?.(updated)
+  }
+
+  const handleToggleAutoLaunch = () => {
+    const next = !autoLaunchEnabled
+    setAutoLaunchEnabled(next)
+    window.devnotch?.setAutoLaunch?.(next)
+  }
+
+  const handleDropShelf = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDraggingOver(false)
+
+    // Check for dropped files
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const file = e.dataTransfer.files[0]
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        const text = (event.target?.result as string) || file.name
+        const newSnippet: SnippetItem = {
+          id: `snippet-${Date.now()}`,
+          title: file.name,
+          content: text.slice(0, 5000),
+          language: file.name.split('.').pop() || 'file',
+          createdAt: Date.now(),
+        }
+        const updated = [newSnippet, ...snippets]
+        setSnippets(updated)
+        window.devnotch?.saveSnippets?.(updated)
+      }
+      reader.readAsText(file)
+      return
+    }
+
+    // Check for dropped text
+    const text = e.dataTransfer.getData('text/plain')
+    if (text && text.trim()) {
+      const firstLine = text.trim().split(/\r?\n/)[0].slice(0, 30)
+      const newSnippet: SnippetItem = {
+        id: `snippet-${Date.now()}`,
+        title: firstLine || 'Quick Snippet',
+        content: text.trim(),
+        language: 'text',
+        createdAt: Date.now(),
+      }
+      const updated = [newSnippet, ...snippets]
+      setSnippets(updated)
+      window.devnotch?.saveSnippets?.(updated)
+    }
+  }
+
+  useEffect(() => {
+    const handleTestAddShelf = (e: Event) => {
+      const customEvent = e as CustomEvent<{ title: string; content: string; language?: string }>
+      if (customEvent.detail?.content) {
+        const newSnippet: SnippetItem = {
+          id: `snippet-${Date.now()}`,
+          title: customEvent.detail.title || 'Untitled Snippet',
+          content: customEvent.detail.content,
+          language: customEvent.detail.language || 'bash',
+          createdAt: Date.now(),
+        }
+        const updated = [newSnippet, ...snippets]
+        setSnippets(updated)
+        window.devnotch?.saveSnippets?.(updated)
+      }
+    }
+    window.addEventListener('zenith:test-add-shelf', handleTestAddShelf)
+    return () => {
+      window.removeEventListener('zenith:test-add-shelf', handleTestAddShelf)
+    }
+  }, [snippets])
+
   // Dynamic pill sizing and border styles
   const getPillDimensions = () => {
     if (isExpanded) {
@@ -729,6 +839,7 @@ export const NotchBar: React.FC = () => {
                     { id: 'media', label: 'Music', icon: Music },
                     { id: 'tasks', label: 'Tasks', icon: CheckSquare },
                     { id: 'ai', label: 'AI', icon: Terminal },
+                    { id: 'shelf', label: 'Shelf', icon: Layers },
                   ] as const
                 ).map(({ id, label, icon: Icon }) => (
                   <button
@@ -1451,6 +1562,112 @@ export const NotchBar: React.FC = () => {
                   <div className="text-[10px] text-zinc-500 flex items-center justify-between font-mono pt-1.5 border-t border-white/[0.06] shrink-0">
                     <span>Global Hotkey: Ctrl + Shift + Space</span>
                     <span className="text-zinc-400 font-mono">1-Click Code Transfer</span>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'shelf' && (
+                <div className="h-full flex flex-col justify-between p-3.5 bg-white/[0.01] border border-white/[0.06] rounded-xl overflow-hidden">
+                  {/* Top Dropzone */}
+                  <div
+                    data-testid="shelf-dropzone"
+                    onDragOver={(e) => {
+                      e.preventDefault()
+                      setIsDraggingOver(true)
+                    }}
+                    onDragLeave={() => setIsDraggingOver(false)}
+                    onDrop={handleDropShelf}
+                    className={`p-3 rounded-lg border border-dashed transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0 ${
+                      isDraggingOver
+                        ? 'border-sky-400 bg-sky-500/10 text-sky-200'
+                        : 'border-white/15 bg-white/[0.02] text-zinc-400 hover:border-white/30'
+                    }`}
+                  >
+                    <FolderDown className="w-4 h-4 text-sky-400" />
+                    <span className="text-xs font-medium">
+                      {isDraggingOver
+                        ? 'Drop code or file here to store'
+                        : 'Drag & drop text or code snippet here to store on Shelf'}
+                    </span>
+                  </div>
+
+                  {/* Snippets Scroll List */}
+                  <div className="flex-1 my-2 overflow-y-auto space-y-2 pr-1 min-h-0">
+                    {snippets.length === 0 ? (
+                      <div className="h-full flex flex-col items-center justify-center gap-1.5 text-zinc-500 font-mono text-xs">
+                        <Clipboard className="w-5 h-5 text-zinc-600" />
+                        <span>Shelf is empty. Drop snippets or files above.</span>
+                      </div>
+                    ) : (
+                      snippets.map((snippet) => (
+                        <div
+                          key={snippet.id}
+                          data-testid={`shelf-item-${snippet.id}`}
+                          className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.06] hover:border-white/10 transition-colors group flex flex-col gap-1.5"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <FileCode className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                              <span className="text-xs font-medium text-zinc-200 truncate">
+                                {snippet.title}
+                              </span>
+                              {snippet.language && (
+                                <span className="text-[9px] font-mono uppercase px-1.5 py-0.2 rounded bg-white/[0.06] text-zinc-400 border border-white/[0.05] shrink-0">
+                                  {snippet.language}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                              <button
+                                type="button"
+                                data-testid="shelf-copy-btn"
+                                onClick={() => handleCopyShelfSnippet(snippet.id, snippet.content)}
+                                className="flex items-center gap-1 text-[11px] font-mono text-zinc-300 hover:text-white px-2 py-0.5 rounded bg-white/[0.06] hover:bg-white/10 border border-white/10 transition-colors cursor-pointer"
+                              >
+                                {copiedSnippetId === snippet.id ? (
+                                  <>
+                                    <Check className="w-3 h-3 text-emerald-400" />
+                                    <span className="text-emerald-400">Copied!</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy className="w-3 h-3 text-zinc-400" />
+                                    <span>Copy</span>
+                                  </>
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                data-testid="shelf-delete-btn"
+                                onClick={() => handleDeleteShelfSnippet(snippet.id)}
+                                className="opacity-0 group-hover:opacity-100 p-1 text-zinc-500 hover:text-red-400 transition-opacity cursor-pointer"
+                                title="Delete snippet"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                          <pre className="text-[11px] font-mono text-zinc-300 bg-black/40 p-2 rounded border border-white/[0.04] overflow-x-auto max-h-[55px] select-text">
+                            <code>{snippet.content}</code>
+                          </pre>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  {/* Options & Auto-Launch Status */}
+                  <div className="pt-2 border-t border-white/[0.06] flex items-center justify-between text-xs text-zinc-400 font-mono shrink-0">
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        data-testid="auto-launch-toggle"
+                        checked={autoLaunchEnabled}
+                        onChange={handleToggleAutoLaunch}
+                        className="w-3.5 h-3.5 rounded bg-white/10 border-white/20 text-sky-500 focus:ring-0 focus:outline-none cursor-pointer"
+                      />
+                      <span className="text-[11px] text-zinc-300">Start with Windows</span>
+                    </label>
+                    <span className="text-[10px] text-zinc-500">%APPDATA%/Zenith/snippets.json</span>
                   </div>
                 </div>
               )}
