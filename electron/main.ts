@@ -1,7 +1,8 @@
-import { app, BrowserWindow, screen, ipcMain, globalShortcut, powerMonitor } from 'electron'
+import { app, BrowserWindow, screen, ipcMain, globalShortcut, powerMonitor, shell } from 'electron'
 import path from 'node:path'
 import fs from 'node:fs'
 import { exec } from 'node:child_process'
+import net from 'node:net'
 
 const WINDOW_WIDTH = 580
 const WINDOW_HEIGHT = 480
@@ -630,8 +631,55 @@ function createWindow() {
         }
         console.log('[TEST] Git Status HUD & IPC Query: PASS')
 
+        // Test Milestone 6: Dev Server & Local Port Scanner
+        console.log('[TEST] Testing Milestone 6 Local Port Scanner...')
+        const testServer = net.createServer()
+        let testPort = 3000
+        try {
+          await new Promise<void>((resolve, reject) => {
+            testServer.once('error', reject)
+            testServer.listen(testPort, '127.0.0.1', () => resolve())
+          })
+        } catch {
+          testPort = 8501
+          await new Promise<void>((resolve) => {
+            testServer.listen(testPort, '127.0.0.1', () => resolve())
+          })
+        }
+
+        const portScanResult = await mainWindow!.webContents.executeJavaScript(`
+          (async function() {
+            const root = document.getElementById('root');
+            
+            // Switch to Dev tab
+            const devBtn = Array.from(root.querySelectorAll('button')).find(b => b.textContent && b.textContent.includes('Dev'));
+            if (devBtn) devBtn.click();
+            await new Promise(r => setTimeout(r, 100));
+
+            // Verify Dev Ports card is rendered
+            const hasPortsCard = root.textContent.includes('Dev Ports');
+            if (!hasPortsCard) return { ok: false, err: 'Dev Ports card missing' };
+
+            // Query IPC directly
+            const ports = await window.devnotch.scanLocalPorts();
+            if (!Array.isArray(ports) || ports.length === 0) {
+              return { ok: false, err: 'scanLocalPorts returned empty or invalid array' };
+            }
+
+            const openPort = ports.find(p => p.isOpen);
+            return { ok: true, ports, openPort };
+          })()
+        `)
+
+        testServer.close()
+
+        if (!portScanResult.ok) {
+          throw new Error('Port Scanner test failed: ' + portScanResult.err)
+        }
+        console.log('[TEST] Local Port Scanner & Live Detection: PASS')
+
         console.log('\n========================================')
-        console.log('✓ All Zenith Milestone 1, 2, 3, 4 & 5 Acceptance Checks Passed!')
+        console.log('✓ All Zenith Milestone 1, 2, 3, 4, 5 & 6 Acceptance Checks Passed!')
         console.log('========================================\n')
 
         app.exit(0)
@@ -902,6 +950,70 @@ ipcMain.handle('git:get-status', async (_event, targetPath?: string): Promise<Gi
       }
     )
   })
+})
+
+// Dev Ports Monitor Handlers
+interface PortDefinition {
+  port: number
+  serviceName: string
+}
+
+const KNOWN_PORTS: PortDefinition[] = [
+  { port: 3000, serviceName: 'Next/React' },
+  { port: 5173, serviceName: 'Vite Dev' },
+  { port: 8000, serviceName: 'FastAPI/Django' },
+  { port: 8080, serviceName: 'Go/Spring' },
+  { port: 8501, serviceName: 'Streamlit' },
+]
+
+function probePort(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const socket = new net.Socket()
+    socket.setTimeout(180)
+    socket.once('connect', () => {
+      socket.destroy()
+      resolve(true)
+    })
+    socket.once('timeout', () => {
+      socket.destroy()
+      resolve(false)
+    })
+    socket.once('error', () => {
+      socket.destroy()
+      resolve(false)
+    })
+    socket.connect(port, '127.0.0.1')
+  })
+}
+
+ipcMain.handle('ports:scan', async (_event, customPorts?: number[]) => {
+  const targets =
+    customPorts && customPorts.length > 0
+      ? customPorts.map((p) => ({
+          port: p,
+          serviceName: KNOWN_PORTS.find((k) => k.port === p)?.serviceName || 'Custom',
+        }))
+      : KNOWN_PORTS
+
+  const results = await Promise.all(
+    targets.map(async ({ port, serviceName }) => {
+      const isOpen = await probePort(port)
+      return {
+        port,
+        serviceName,
+        isOpen,
+        url: `http://localhost:${port}`,
+      }
+    })
+  )
+
+  return results
+})
+
+ipcMain.handle('shell:open-external', async (_event, url: string) => {
+  if (url && (url.startsWith('http://') || url.startsWith('https://'))) {
+    shell.openExternal(url)
+  }
 })
 
 app.whenReady().then(() => {

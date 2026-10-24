@@ -44,6 +44,13 @@ export interface GitStatusResult {
   repoPath: string
 }
 
+export interface PortStatus {
+  port: number
+  serviceName: string
+  isOpen: boolean
+  url: string
+}
+
 export interface ZenithAPI {
   expandWindow: (expanded: boolean) => Promise<void>
   closeApp: () => Promise<void>
@@ -58,6 +65,8 @@ export interface ZenithAPI {
   controlMedia: (action: 'play' | 'pause' | 'next' | 'prev') => Promise<void>
   getLyrics: (title: string, artist: string) => Promise<LyricsData | null>
   getGitStatus: (targetPath?: string) => Promise<GitStatusResult>
+  scanLocalPorts: (ports?: number[]) => Promise<PortStatus[]>
+  openExternal: (url: string) => Promise<void>
 }
 
 declare global {

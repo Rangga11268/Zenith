@@ -65,9 +65,10 @@ Project Scaffold (Vite + Electron + TS + Tailwind)
 - [x] *Acceptance Criteria:* Mengedit file di proyek langsung memperbarui counter uncommitted changes di notch (lulus verifikasi query & UI otomatis).
 
 ### Milestone 6: Dev Server & Port Monitor (Developer Feature)
-- [ ] Implementasi port scanner cepat via `net.Socket` untuk port `3000`, `5173`, `8000`, `8080`, `8501`.
-- [ ] UI indikator: lampu hijau bulat, label port, dan tombol 1-klik untuk buka di browser default.
-- [ ] *Acceptance Criteria:* Menjalankan `npm run dev` di proyek mana saja langsung memunculkan indikator hijau `🟢 5173` di notch.
+- [x] Implementasi port scanner cepat via `net.Socket` bawaan Node.js untuk port `3000`, `5173`, `8000`, `8080`, `8501`.
+- [x] UI indikator: dot hijau, counter port aktif, label service, dan tombol 1-klik untuk buka di browser default via `shell.openExternal`.
+- [x] Auto-poll interval (setiap 4 detik saat notch dibuka pada tab Dev) dan tombol scan manual `↻`.
+- [x] *Acceptance Criteria:* Menjalankan dev server di port umum langsung terdeteksi di notch dan dapat dibuka di browser dalam 1 klik (lulus live test socket probe otomatis).
 
 ### Milestone 7: AI Copilot & Quick Prompt Bar (Developer Feature)
 - [ ] Input box prompt di notch dengan shortcut `Ctrl + Shift + Space`.

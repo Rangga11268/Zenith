@@ -19,7 +19,8 @@ import {
   Play,
   Pause,
   SkipForward,
-  SkipBack
+  SkipBack,
+  ExternalLink
 } from 'lucide-react'
 
 export type DynamicPillState = 'idle' | 'charging' | 'battery-low' | 'notification'
@@ -56,6 +57,13 @@ export interface GitStatusResult {
   lastCommit: string
   isRepo: boolean
   repoPath: string
+}
+
+export interface PortStatus {
+  port: number
+  serviceName: string
+  isOpen: boolean
+  url: string
 }
 
 function formatTime(seconds: number): string {
@@ -106,6 +114,10 @@ export const NotchBar: React.FC = () => {
     isRepo: true,
     repoPath: '',
   })
+
+  // Dev Ports state
+  const [ports, setPorts] = useState<PortStatus[]>([])
+  const [isScanningPorts, setIsScanningPorts] = useState(false)
 
   const containerRef = useRef<HTMLDivElement>(null)
   const morphTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -343,6 +355,31 @@ export const NotchBar: React.FC = () => {
     refreshGit()
     if (isExpanded && activeTab === 'dev') {
       timer = setInterval(refreshGit, 5000)
+    }
+
+    return () => {
+      if (timer) clearInterval(timer)
+    }
+  }, [isExpanded, activeTab])
+
+  // Dev Ports Monitor polling
+  useEffect(() => {
+    let timer: ReturnType<typeof setInterval> | null = null
+    const scanPorts = () => {
+      setIsScanningPorts(true)
+      window.devnotch?.scanLocalPorts?.()
+        .then((res) => {
+          if (Array.isArray(res)) {
+            setPorts(res)
+          }
+        })
+        .catch(() => {})
+        .finally(() => setIsScanningPorts(false))
+    }
+
+    scanPorts()
+    if (isExpanded && activeTab === 'dev') {
+      timer = setInterval(scanPorts, 4000)
     }
 
     return () => {
@@ -658,18 +695,74 @@ export const NotchBar: React.FC = () => {
                         <span className="flex items-center gap-1.5 font-medium">
                           <Radio className="w-3.5 h-3.5 text-sky-400" /> Dev Ports
                         </span>
-                        <span className="font-mono text-[10px] text-sky-400">
-                          1 listening
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={`font-mono text-[10px] ${
+                              ports.filter((p) => p.isOpen).length > 0 ? 'text-sky-400' : 'text-zinc-500'
+                            }`}
+                          >
+                            {ports.filter((p) => p.isOpen).length} listening
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsScanningPorts(true)
+                              window.devnotch?.scanLocalPorts?.()
+                                .then((res) => {
+                                  if (Array.isArray(res)) setPorts(res)
+                                })
+                                .finally(() => setIsScanningPorts(false))
+                            }}
+                            className={`hover:text-zinc-300 transition-colors text-zinc-500 ${
+                              isScanningPorts ? 'animate-spin' : ''
+                            }`}
+                            title="Scan ports now"
+                          >
+                            ↻
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-sm font-semibold text-emerald-400">
-                          :5173
-                        </span>
-                        <span className="text-xs text-zinc-400">Vite Dev Server</span>
-                      </div>
-                      <div className="text-[11px] text-zinc-500 font-mono mt-1">
-                        http://localhost:5173
+
+                      {ports.filter((p) => p.isOpen).length > 0 ? (
+                        <div className="space-y-1 my-0.5 max-h-[52px] overflow-y-auto">
+                          {ports
+                            .filter((p) => p.isOpen)
+                            .map((p) => (
+                              <button
+                                key={p.port}
+                                type="button"
+                                onClick={() => window.devnotch?.openExternal(p.url)}
+                                className="w-full flex items-center justify-between p-1 rounded bg-white/[0.03] hover:bg-white/[0.08] transition-colors group text-left"
+                                title={`Open ${p.url} in browser`}
+                              >
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
+                                  <span className="font-mono text-xs font-semibold text-emerald-400">
+                                    :{p.port}
+                                  </span>
+                                  <span className="text-[11px] text-zinc-400 truncate">
+                                    {p.serviceName}
+                                  </span>
+                                </div>
+                                <ExternalLink className="w-3 h-3 text-zinc-500 group-hover:text-zinc-200 transition-colors shrink-0" />
+                              </button>
+                            ))}
+                        </div>
+                      ) : (
+                        <div className="flex flex-col justify-center my-0.5">
+                          <div className="text-xs text-zinc-400 font-mono">
+                            No active servers
+                          </div>
+                          <div className="text-[10px] text-zinc-600 font-mono mt-0.5">
+                            Scanning :3000, :5173, :8000, :8080...
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="text-[10px] text-zinc-500 font-mono mt-1 truncate">
+                        {ports.filter((p) => p.isOpen).length > 0
+                          ? 'Click port to open in browser'
+                          : 'Start dev server in any project'}
                       </div>
                     </div>
                   </div>
