@@ -9,8 +9,20 @@ import {
   Music,
   Power,
   Activity,
-  Layers
+  Layers,
+  Zap,
+  AlertTriangle,
+  Bell
 } from 'lucide-react'
+
+export type DynamicPillState = 'idle' | 'charging' | 'battery-low' | 'notification'
+
+export interface NotificationData {
+  id?: string
+  appName?: string
+  title: string
+  body: string
+}
 
 // Track hit-testing state to prevent IPC thrashing and flickering
 let isMouseIgnored: boolean | null = null
@@ -24,11 +36,25 @@ function updateHitTesting(interactive: boolean) {
 export const NotchBar: React.FC = () => {
   const [isExpanded, setIsExpanded] = useState(false)
   const [activeTab, setActiveTab] = useState<'dev' | 'media' | 'tasks' | 'ai'>('dev')
+  const [pillState, setPillState] = useState<DynamicPillState>('idle')
+  const [batteryLevel, setBatteryLevel] = useState<number>(100)
+  const [, setIsCharging] = useState<boolean>(false)
+  const [activeNotif, setActiveNotif] = useState<NotificationData | null>(null)
   const [timeStr, setTimeStr] = useState(() => {
     const now = new Date()
     return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
   })
+
   const containerRef = useRef<HTMLDivElement>(null)
+  const morphTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const triggerMorph = (state: DynamicPillState, duration = 3500) => {
+    if (morphTimeoutRef.current) clearTimeout(morphTimeoutRef.current)
+    setPillState(state)
+    morphTimeoutRef.current = setTimeout(() => {
+      setPillState('idle')
+    }, duration)
+  }
 
   // Clock ticker for the pill
   useEffect(() => {
@@ -50,6 +76,7 @@ export const NotchBar: React.FC = () => {
     updateHitTesting(false)
     return () => {
       isMouseIgnored = null
+      if (morphTimeoutRef.current) clearTimeout(morphTimeoutRef.current)
     }
   }, [])
 
@@ -68,11 +95,94 @@ export const NotchBar: React.FC = () => {
   }
 
   const toggleExpand = () => {
-    const nextState = !isExpanded
-    setIsExpanded(nextState)
-    window.devnotch?.expandWindow(nextState)
-    updateHitTesting(true)
+    setIsExpanded((prev) => {
+      const nextState = !prev
+      window.devnotch?.expandWindow(nextState)
+      updateHitTesting(nextState)
+      return nextState
+    })
   }
+
+  // Global toggle listener (from shortcut or test event)
+  useEffect(() => {
+    const cleanupShortcut = window.devnotch?.onToggleNotch?.(() => {
+      toggleExpand()
+    })
+    const handleTestToggle = () => {
+      toggleExpand()
+    }
+    window.addEventListener('zenith:test-toggle', handleTestToggle)
+
+    return () => {
+      cleanupShortcut?.()
+      window.removeEventListener('zenith:test-toggle', handleTestToggle)
+    }
+  }, [])
+
+  // Battery monitoring (Native Chromium Battery API + Test Simulation)
+  useEffect(() => {
+    if (typeof navigator !== 'undefined' && 'getBattery' in navigator) {
+      // @ts-expect-error - Chromium native BatteryManager
+      navigator.getBattery().then((battery: any) => {
+        const level = Math.round(battery.level * 100)
+        setBatteryLevel(level)
+        setIsCharging(battery.charging)
+
+        battery.addEventListener('chargingchange', () => {
+          setIsCharging(battery.charging)
+          if (battery.charging) {
+            triggerMorph('charging', 3500)
+          }
+        })
+        battery.addEventListener('levelchange', () => {
+          const lvl = Math.round(battery.level * 100)
+          setBatteryLevel(lvl)
+          if (!battery.charging && lvl <= 20) {
+            triggerMorph('battery-low', 4000)
+          }
+        })
+      }).catch(() => {})
+    }
+
+    const handleSimulateBattery = (e: Event) => {
+      const customEvent = e as CustomEvent<{ charging: boolean; level: number }>
+      const { charging, level } = customEvent.detail || {}
+      if (typeof level === 'number') setBatteryLevel(level)
+      if (typeof charging === 'boolean') {
+        setIsCharging(charging)
+        if (charging) {
+          triggerMorph('charging', 3500)
+        } else if (level <= 20) {
+          triggerMorph('battery-low', 4000)
+        }
+      }
+    }
+    window.addEventListener('zenith:simulate-battery', handleSimulateBattery)
+
+    return () => {
+      window.removeEventListener('zenith:simulate-battery', handleSimulateBattery)
+    }
+  }, [])
+
+  // System Notifications (IPC & Test Simulation)
+  useEffect(() => {
+    const handleNotification = (notif: NotificationData) => {
+      setActiveNotif(notif)
+      triggerMorph('notification', 4000)
+    }
+
+    const cleanupNotif = window.devnotch?.onNotification?.(handleNotification)
+    const handleSimulateNotif = (e: Event) => {
+      const customEvent = e as CustomEvent<NotificationData>
+      handleNotification(customEvent.detail)
+    }
+    window.addEventListener('zenith:simulate-notification', handleSimulateNotif)
+
+    return () => {
+      cleanupNotif?.()
+      window.removeEventListener('zenith:simulate-notification', handleSimulateNotif)
+    }
+  }, [])
 
   // Handle Escape key and outside blur to smoothly collapse deck
   useEffect(() => {
@@ -102,6 +212,24 @@ export const NotchBar: React.FC = () => {
     window.devnotch?.closeApp()
   }
 
+  // Dynamic pill sizing and border styles
+  const getPillDimensions = () => {
+    if (isExpanded) {
+      return 'w-[540px] h-[420px] rounded-b-[24px] rounded-t-none px-6 py-4 cursor-default'
+    }
+    switch (pillState) {
+      case 'charging':
+        return 'w-[330px] h-[38px] rounded-b-[18px] rounded-t-none cursor-pointer border-emerald-500/30 shadow-[0_12px_28px_rgba(16,185,129,0.15)]'
+      case 'battery-low':
+        return 'w-[310px] h-[38px] rounded-b-[18px] rounded-t-none cursor-pointer border-amber-500/30 shadow-[0_12px_28px_rgba(245,158,11,0.15)]'
+      case 'notification':
+        return 'w-[360px] h-[42px] rounded-b-[20px] rounded-t-none cursor-pointer border-sky-500/30 shadow-[0_12px_28px_rgba(56,189,248,0.15)]'
+      case 'idle':
+      default:
+        return 'w-[260px] h-[38px] rounded-b-[18px] rounded-t-none cursor-pointer hover:border-white/20'
+    }
+  }
+
   return (
     <div className="w-full flex justify-center items-start select-none pt-0">
       <div
@@ -118,37 +246,102 @@ export const NotchBar: React.FC = () => {
           shadow-[0_20px_40px_rgba(0,0,0,0.7),0_0_0_1px_rgba(255,255,255,0.05)]
           transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]
           overflow-hidden flex flex-col items-center justify-start
-          ${
-            isExpanded
-              ? 'w-[540px] h-[420px] rounded-b-[24px] rounded-t-none px-6 py-4 cursor-default'
-              : 'w-[260px] h-[38px] rounded-b-[18px] rounded-t-none cursor-pointer hover:border-white/20'
-          }
+          ${getPillDimensions()}
         `}
         onClick={!isExpanded ? toggleExpand : undefined}
       >
-        {/* COLLAPSED PILL VIEW */}
+        {/* COLLAPSED PILL VIEW & DYNAMIC ISLAND MORPHS */}
         {!isExpanded ? (
-          <div className="w-[260px] h-[38px] flex items-center justify-between pointer-events-auto shrink-0 px-4">
-            {/* Left: Steady status dot & Clock */}
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]"></span>
-              <span className="text-[11px] font-medium text-zinc-300 font-mono tracking-tight">
-                {timeStr || 'ZENITH'}
-              </span>
-            </div>
+          <>
+            {pillState === 'charging' && (
+              <div className="w-[330px] h-[38px] flex items-center justify-between pointer-events-auto shrink-0 px-3.5">
+                <div className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                    <Zap className="w-3 h-3 text-emerald-400 fill-emerald-400" />
+                  </span>
+                  <span className="text-xs font-semibold text-emerald-400 tracking-tight">
+                    Power Connected
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-3 rounded-[3px] border border-emerald-500/40 p-0.5 flex items-center">
+                    <div
+                      className="h-full bg-emerald-400 rounded-xs transition-all duration-500"
+                      style={{ width: `${Math.min(100, Math.max(10, batteryLevel))}%` }}
+                    />
+                  </div>
+                  <span className="font-mono text-xs text-zinc-300 font-semibold">{batteryLevel}%</span>
+                </div>
+              </div>
+            )}
 
-            {/* Center: Brand & Telemetry Indicator */}
-            <div className="flex items-center gap-2 text-[11px] text-zinc-400">
-              <span className="font-semibold text-zinc-200 tracking-tight">Zenith</span>
-              <span className="text-zinc-600">//</span>
-              <span className="font-mono text-[10px] text-zinc-400">DEV</span>
-            </div>
+            {pillState === 'battery-low' && (
+              <div className="w-[310px] h-[38px] flex items-center justify-between pointer-events-auto shrink-0 px-3.5">
+                <div className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center">
+                    <AlertTriangle className="w-3 h-3 text-amber-400" />
+                  </span>
+                  <span className="text-xs font-semibold text-amber-400 tracking-tight">
+                    Battery Low
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-3 rounded-[3px] border border-amber-500/40 p-0.5 flex items-center">
+                    <div
+                      className="h-full bg-amber-400 rounded-xs transition-all duration-500"
+                      style={{ width: `${Math.min(100, Math.max(5, batteryLevel))}%` }}
+                    />
+                  </div>
+                  <span className="font-mono text-xs text-amber-300 font-semibold">{batteryLevel}%</span>
+                </div>
+              </div>
+            )}
 
-            {/* Right: Expand Trigger */}
-            <div className="flex items-center text-zinc-500 hover:text-zinc-200 transition-colors">
-              <ChevronDown className="w-3.5 h-3.5" />
-            </div>
-          </div>
+            {pillState === 'notification' && (
+              <div className="w-[360px] h-[42px] flex items-center justify-between pointer-events-auto shrink-0 px-3.5">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-6 h-6 rounded-lg bg-sky-500/10 border border-sky-500/20 flex items-center justify-center shrink-0">
+                    <Bell className="w-3.5 h-3.5 text-sky-400" />
+                  </div>
+                  <div className="flex flex-col text-left overflow-hidden">
+                    <span className="text-xs font-semibold text-zinc-200 truncate">
+                      {activeNotif?.title || 'System Notification'}
+                    </span>
+                    <span className="text-[10px] text-zinc-400 truncate">
+                      {activeNotif?.body || 'New alert received'}
+                    </span>
+                  </div>
+                </div>
+                <span className="text-[9px] font-mono uppercase tracking-wider text-zinc-500 shrink-0 ml-2">
+                  {activeNotif?.appName || 'System'}
+                </span>
+              </div>
+            )}
+
+            {pillState === 'idle' && (
+              <div className="w-[260px] h-[38px] flex items-center justify-between pointer-events-auto shrink-0 px-4">
+                {/* Left: Steady status dot & Clock */}
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]"></span>
+                  <span className="text-[11px] font-medium text-zinc-300 font-mono tracking-tight">
+                    {timeStr || 'ZENITH'}
+                  </span>
+                </div>
+
+                {/* Center: Brand & Telemetry Indicator */}
+                <div className="flex items-center gap-2 text-[11px] text-zinc-400">
+                  <span className="font-semibold text-zinc-200 tracking-tight">Zenith</span>
+                  <span className="text-zinc-600">//</span>
+                  <span className="font-mono text-[10px] text-zinc-400">DEV</span>
+                </div>
+
+                {/* Right: Expand Trigger */}
+                <div className="flex items-center text-zinc-500 hover:text-zinc-200 transition-colors">
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </div>
+              </div>
+            )}
+          </>
         ) : (
           /* EXPANDED DECK VIEW (Engineered Anti-Slop Layout) */
           <div className="w-full h-full flex flex-col justify-between">
@@ -199,13 +392,13 @@ export const NotchBar: React.FC = () => {
             </div>
 
             {/* Main Content Area */}
-            <div className="flex-1 py-4 overflow-hidden">
+            <div className="flex-1 py-3 overflow-hidden">
               {activeTab === 'dev' && (
-                <div className="h-full flex flex-col justify-between space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
+                <div className="h-full flex flex-col justify-between space-y-2.5">
+                  <div className="grid grid-cols-2 gap-2.5">
                     {/* Git Status Card */}
-                    <div className="p-3.5 bg-white/[0.02] border border-white/[0.08] rounded-xl flex flex-col justify-between">
-                      <div className="flex items-center justify-between text-xs text-zinc-400 mb-2">
+                    <div className="p-3 bg-white/[0.02] border border-white/[0.08] rounded-xl flex flex-col justify-between">
+                      <div className="flex items-center justify-between text-xs text-zinc-400 mb-1.5">
                         <span className="flex items-center gap-1.5 font-medium">
                           <GitBranch className="w-3.5 h-3.5 text-sky-400" /> Git Status
                         </span>
@@ -222,8 +415,8 @@ export const NotchBar: React.FC = () => {
                     </div>
 
                     {/* Port Monitor Card */}
-                    <div className="p-3.5 bg-white/[0.02] border border-white/[0.08] rounded-xl flex flex-col justify-between">
-                      <div className="flex items-center justify-between text-xs text-zinc-400 mb-2">
+                    <div className="p-3 bg-white/[0.02] border border-white/[0.08] rounded-xl flex flex-col justify-between">
+                      <div className="flex items-center justify-between text-xs text-zinc-400 mb-1.5">
                         <span className="flex items-center gap-1.5 font-medium">
                           <Radio className="w-3.5 h-3.5 text-sky-400" /> Dev Ports
                         </span>
@@ -243,14 +436,57 @@ export const NotchBar: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* Dynamic Island Morph Previews */}
+                  <div className="p-2.5 bg-white/[0.02] border border-white/[0.08] rounded-xl flex items-center justify-between text-xs">
+                    <span className="text-zinc-400 font-mono text-[11px] flex items-center gap-1.5">
+                      <Zap className="w-3.5 h-3.5 text-amber-400" />
+                      Notch Morphs:
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleClose()
+                          setTimeout(() => triggerMorph('charging', 3500), 250)
+                        }}
+                        className="px-2 py-1 rounded bg-white/[0.04] hover:bg-white/[0.08] text-[10px] font-mono text-emerald-400 transition-colors"
+                      >
+                        ⚡ Power
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleClose()
+                          setTimeout(() => triggerMorph('battery-low', 4000), 250)
+                        }}
+                        className="px-2 py-1 rounded bg-white/[0.04] hover:bg-white/[0.08] text-[10px] font-mono text-amber-400 transition-colors"
+                      >
+                        ⚠️ Low Batt
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleClose()
+                          setTimeout(() => {
+                            setActiveNotif({ appName: 'Git', title: 'Commit Pushed', body: 'Milestone 2 landed' })
+                            triggerMorph('notification', 4000)
+                          }, 250)
+                        }}
+                        className="px-2 py-1 rounded bg-white/[0.04] hover:bg-white/[0.08] text-[10px] font-mono text-sky-400 transition-colors"
+                      >
+                        🔔 Alert
+                      </button>
+                    </div>
+                  </div>
+
                   {/* Operational Telemetry Banner */}
-                  <div className="p-3 bg-white/[0.02] border border-white/[0.08] rounded-xl flex items-center justify-between text-xs text-zinc-400">
+                  <div className="p-2.5 bg-white/[0.02] border border-white/[0.08] rounded-xl flex items-center justify-between text-xs text-zinc-400">
                     <div className="flex items-center gap-2">
                       <Layers className="w-3.5 h-3.5 text-zinc-400" />
-                      <span>Architecture: Frameless Transparent Shell v1.0.0</span>
+                      <span>Architecture: Living Notch v1.0.0</span>
                     </div>
                     <div className="flex items-center gap-3 font-mono text-[11px]">
-                      <span className="text-zinc-500">DPI: 100%</span>
+                      <span className="text-zinc-500">Shortcut: Ctrl+Shift+Space</span>
                       <span className="text-emerald-400">60 FPS</span>
                     </div>
                   </div>

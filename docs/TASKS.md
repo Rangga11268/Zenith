@@ -37,10 +37,12 @@ Project Scaffold (Vite + Electron + TS + Tailwind)
 - [x] Penerapan `/antislop-ui`: palet Obsidian `#090A0F`, typografis clean, tanpa rainbow skittles, tanpa infinite ping loops, micro-borders tajam.
 
 ### Milestone 2: Notch Pill Container & Smooth Expansion
-- [ ] Implementasi UI bilah pil hitam rounded (*collapsed state*) di `src/components/NotchBar.tsx`.
-- [ ] Implementasi animasi transisi membuka ke deck multifungsi (*expanded state*) menggunakan Tailwind / CSS transitions.
-- [ ] Pengaturan dynamic window resizing via IPC (resize dari 38px ke 420px saat dibuka).
-- [ ] *Acceptance Criteria:* Klik atau hover pada notch membuka deck dengan transisi 60 FPS tanpa jeda.
+- [x] Implementasi UI bilah pil hitam rounded (*collapsed state*) di `src/components/NotchBar.tsx`.
+- [x] Implementasi animasi transisi membuka ke deck multifungsi (*expanded state*) menggunakan Tailwind / CSS transitions `cubic-bezier(0.16, 1, 0.3, 1)`.
+- [x] Implementasi Dynamic Island morphing untuk status Baterai (Charging Connected & Low Battery alert).
+- [x] Implementasi Dynamic Island morphing untuk System Notification Hub (preview pesan + auto-collapse).
+- [x] Integrasi Global Shortcut Windows (`Ctrl+Shift+Space`) untuk toggle notch di Main & Renderer.
+- [x] *Acceptance Criteria:* Klik, hover, atau shortcut membuka deck dengan transisi 60 FPS tanpa jeda, lulus 15 verifikasi otomatis termasuk Dynamic Island battery & notification morphs.
 
 ### Milestone 3: To-Do & Task Manager (Fitur Bawaan)
 - [ ] Implementasi IPC handler untuk load/save task di `%APPDATA%\Zenith\tasks.json`.

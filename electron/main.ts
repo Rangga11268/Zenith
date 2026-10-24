@@ -1,4 +1,4 @@
-import { app, BrowserWindow, screen, ipcMain } from 'electron'
+import { app, BrowserWindow, screen, ipcMain, globalShortcut, powerMonitor } from 'electron'
 import path from 'node:path'
 import fs from 'node:fs'
 
@@ -415,8 +415,69 @@ function createWindow() {
         }
         console.log('[TEST] Blur Collapse: PASS')
 
+        // Test Milestone 2: Global Shortcut Toggle (toggle-notch)
+        console.log('[TEST] Testing Global Shortcut Toggle...')
+        const shortcutToggleResult = await mainWindow!.webContents.executeJavaScript(`
+          (async function() {
+            const root = document.getElementById('root');
+            window.dispatchEvent(new CustomEvent('zenith:test-toggle'));
+            await new Promise(r => setTimeout(r, 150));
+            const hasDevTab = root.textContent.includes('Dev');
+            if (!hasDevTab) return { ok: false, err: 'Global shortcut did not expand deck' };
+            window.dispatchEvent(new CustomEvent('zenith:test-toggle'));
+            await new Promise(r => setTimeout(r, 150));
+            const stillExpanded = root.textContent.includes('Dev');
+            if (stillExpanded) return { ok: false, err: 'Global shortcut did not collapse deck' };
+            return { ok: true };
+          })()
+        `)
+        if (!shortcutToggleResult.ok) {
+          throw new Error('Global shortcut toggle failed: ' + shortcutToggleResult.err)
+        }
+        console.log('[TEST] Global Shortcut Toggle: PASS')
+
+        // Test Milestone 2: Dynamic Island Battery Morph
+        console.log('[TEST] Testing Dynamic Island Battery Morph...')
+        const batteryMorphResult = await mainWindow!.webContents.executeJavaScript(`
+          (async function() {
+            const root = document.getElementById('root');
+            window.dispatchEvent(new CustomEvent('zenith:simulate-battery', {
+              detail: { charging: true, level: 88 }
+            }));
+            await new Promise(r => setTimeout(r, 100));
+            const pill = root.querySelector('[data-testid="notch-pill"]');
+            const text = pill ? pill.textContent : '';
+            const hasPower = text.includes('Power Connected') || text.includes('88%');
+            return { ok: hasPower, text };
+          })()
+        `)
+        if (!batteryMorphResult.ok) {
+          throw new Error('Battery morph failed: ' + batteryMorphResult.text)
+        }
+        console.log('[TEST] Dynamic Island Battery Morph: PASS')
+
+        // Test Milestone 2: Dynamic Island Notification Morph
+        console.log('[TEST] Testing Dynamic Island Notification Morph...')
+        const notifMorphResult = await mainWindow!.webContents.executeJavaScript(`
+          (async function() {
+            const root = document.getElementById('root');
+            window.dispatchEvent(new CustomEvent('zenith:simulate-notification', {
+              detail: { appName: 'Git', title: 'Commit Pushed', body: 'Milestone 2 landed' }
+            }));
+            await new Promise(r => setTimeout(r, 100));
+            const pill = root.querySelector('[data-testid="notch-pill"]');
+            const text = pill ? pill.textContent : '';
+            const hasNotif = text.includes('Commit Pushed');
+            return { ok: hasNotif, text };
+          })()
+        `)
+        if (!notifMorphResult.ok) {
+          throw new Error('Notification morph failed: ' + notifMorphResult.text)
+        }
+        console.log('[TEST] Dynamic Island Notification Morph: PASS')
+
         console.log('\n========================================')
-        console.log('✓ All Zenith Milestone 1 Acceptance Checks Passed!')
+        console.log('✓ All Zenith Milestone 1 & 2 Acceptance Checks Passed!')
         console.log('========================================\n')
 
         app.exit(0)
@@ -456,14 +517,46 @@ ipcMain.handle('window:expand', (_event, expanded: boolean) => {
   isDeckExpanded = !!expanded
 })
 
+ipcMain.on('notification:trigger', (_event, notif) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('notification:received', notif)
+  }
+})
+
+ipcMain.handle('battery:get-status', async () => {
+  try {
+    const onBattery = powerMonitor?.isOnBatteryPower?.() ?? false
+    return {
+      level: 1.0,
+      charging: !onBattery,
+    }
+  } catch (err) {
+    return { level: 1.0, charging: true }
+  }
+})
+
 app.whenReady().then(() => {
   createWindow()
+
+  try {
+    globalShortcut.register('CommandOrControl+Shift+Space', () => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('toggle-notch')
+      }
+    })
+  } catch (err) {
+    console.warn('[Zenith] Could not register global shortcut:', err)
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow()
     }
   })
+})
+
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll()
 })
 
 app.on('window-all-closed', () => {
