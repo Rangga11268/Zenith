@@ -31,17 +31,24 @@ if (!gotTheLock) {
     app.exit(1)
   } else {
     app.quit()
+    process.exit(0)
   }
 } else {
   app.on('second-instance', () => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      if (mainWindow.isMinimized()) mainWindow.restore()
-      mainWindow.show()
-      mainWindow.focus()
-      mainWindow.webContents.send('toggle-notch')
-      console.log('[Zenith] Second instance launched: focused and expanded existing Zenith window.')
-    }
+    console.log('[Zenith] Second instance launched: focusing and expanding existing Zenith window.')
+    toggleNotch()
   })
+}
+
+function toggleNotch() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.show()
+    mainWindow.focus()
+    mainWindow.setAlwaysOnTop(true, 'screen-saver', 1)
+    mainWindow.webContents.send('toggle-notch')
+    console.log('[Zenith] Toggled notch deck.')
+  }
 }
 
 function getWindowPosition() {
@@ -82,7 +89,8 @@ function createWindow() {
     alwaysOnTop: true,
     skipTaskbar: false,
     resizable: false,
-    hasShadow: true,
+    hasShadow: false,
+    show: true,
     webPreferences: {
       preload: preloadPath,
       contextIsolation: true,
@@ -92,16 +100,8 @@ function createWindow() {
   })
 
   // Ensure layered above full-screen apps and other windows
-  if (process.platform === 'darwin') {
-    mainWindow.setAlwaysOnTop(true, 'screen-saver')
-  } else {
-    mainWindow.setAlwaysOnTop(true)
-  }
+  mainWindow.setAlwaysOnTop(true, 'screen-saver', 1)
   mainWindow.setVisibleOnAllWorkspaces?.(true, { visibleOnFullScreen: true })
-
-  // Initialize click-through: transparent regions outside the notch pass clicks to background
-  mainWindow.setIgnoreMouseEvents(true, { forward: true })
-  lastHitTestState = { ignore: true, forward: true }
 
   mainWindow.webContents.on('console-message', (_event, _level, message, line, sourceId) => {
     console.log(`[RENDERER] ${message} (${sourceId}:${line})`)
@@ -109,6 +109,13 @@ function createWindow() {
 
   mainWindow.webContents.on('did-finish-load', () => {
     console.log('[Zenith] Renderer did-finish-load successfully! URL:', mainWindow?.webContents.getURL())
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.show()
+      mainWindow.focus()
+      mainWindow.setAlwaysOnTop(true, 'screen-saver', 1)
+      mainWindow.setIgnoreMouseEvents(true, { forward: true })
+      lastHitTestState = { ignore: true, forward: true }
+    }
   })
 
   mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
@@ -1557,13 +1564,7 @@ function createTray() {
       { type: 'separator' },
       {
         label: 'Toggle Notch Deck (F8 / Ctrl+Shift+Space)',
-        click: () => {
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.show()
-            mainWindow.focus()
-            mainWindow.webContents.send('toggle-notch')
-          }
-        },
+        click: toggleNotch,
       },
       {
         label: 'Center on Primary Monitor',
@@ -1573,6 +1574,7 @@ function createTray() {
             mainWindow.setBounds({ x: pos.x, y: pos.y, width: WINDOW_WIDTH, height: WINDOW_HEIGHT })
             mainWindow.show()
             mainWindow.focus()
+            mainWindow.setAlwaysOnTop(true, 'screen-saver', 1)
           }
         },
       },
@@ -1586,13 +1588,7 @@ function createTray() {
     ])
 
     tray.setContextMenu(contextMenu)
-    tray.on('click', () => {
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.show()
-        mainWindow.focus()
-        mainWindow.webContents.send('toggle-notch')
-      }
-    })
+    tray.on('click', toggleNotch)
     console.log('[Zenith] System tray created successfully.')
   } catch (err) {
     console.warn('[Zenith] Could not create system tray:', err)
@@ -1612,13 +1608,7 @@ app.whenReady().then(() => {
   ]
   shortcuts.forEach((sc) => {
     try {
-      const ok = globalShortcut.register(sc, () => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.show()
-          mainWindow.focus()
-          mainWindow.webContents.send('toggle-notch')
-        }
-      })
+      const ok = globalShortcut.register(sc, toggleNotch)
       console.log(`[Zenith] Global hotkey '${sc}' registered: ${ok}`)
     } catch (err) {
       console.warn(`[Zenith] Could not register shortcut '${sc}':`, err)
