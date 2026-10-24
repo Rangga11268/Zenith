@@ -1,4 +1,4 @@
-import { app, BrowserWindow, screen, ipcMain, globalShortcut, powerMonitor, shell } from 'electron'
+import { app, BrowserWindow, screen, ipcMain, globalShortcut, powerMonitor, shell, Tray, Menu, nativeImage } from 'electron'
 import path from 'node:path'
 import fs from 'node:fs'
 import { exec } from 'node:child_process'
@@ -13,6 +13,7 @@ interface HitTestState {
 }
 
 let mainWindow: BrowserWindow | null = null
+let tray: Tray | null = null
 let lastHitTestState: HitTestState = { ignore: true, forward: true }
 let isDeckExpanded = false
 const isHitTestIgnored = (): boolean => lastHitTestState.ignore
@@ -33,9 +34,12 @@ if (!gotTheLock) {
   }
 } else {
   app.on('second-instance', () => {
-    if (mainWindow) {
+    if (mainWindow && !mainWindow.isDestroyed()) {
       if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.show()
       mainWindow.focus()
+      mainWindow.webContents.send('toggle-notch')
+      console.log('[Zenith] Second instance launched: focused and expanded existing Zenith window.')
     }
   })
 }
@@ -68,6 +72,7 @@ function createWindow() {
   }
 
   mainWindow = new BrowserWindow({
+    title: 'Zenith - Living Notch',
     width: WINDOW_WIDTH,
     height: WINDOW_HEIGHT,
     x,
@@ -75,11 +80,9 @@ function createWindow() {
     frame: false,
     transparent: true,
     alwaysOnTop: true,
-    skipTaskbar: true,
+    skipTaskbar: false,
     resizable: false,
-    hasShadow: false,
-    thickFrame: false,
-    backgroundColor: '#00000000',
+    hasShadow: true,
     webPreferences: {
       preload: preloadPath,
       contextIsolation: true,
@@ -1536,18 +1539,91 @@ ipcMain.handle('autolaunch:set', async (_event, enabled: boolean): Promise<boole
   }
 })
 
-app.whenReady().then(() => {
-  createWindow()
-
+function createTray() {
   try {
-    globalShortcut.register('CommandOrControl+Shift+Space', () => {
+    const iconPath = path.join(__dirname, '../assets/icon.png')
+    const icon = fs.existsSync(iconPath)
+      ? nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 })
+      : nativeImage.createEmpty()
+
+    tray = new Tray(icon)
+    tray.setToolTip('Zenith - Living Desktop Notch')
+
+    const contextMenu = Menu.buildFromTemplate([
+      {
+        label: 'Zenith Living Notch',
+        enabled: false,
+      },
+      { type: 'separator' },
+      {
+        label: 'Toggle Notch Deck (F8 / Ctrl+Shift+Space)',
+        click: () => {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.show()
+            mainWindow.focus()
+            mainWindow.webContents.send('toggle-notch')
+          }
+        },
+      },
+      {
+        label: 'Center on Primary Monitor',
+        click: () => {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            const pos = getWindowPosition()
+            mainWindow.setBounds({ x: pos.x, y: pos.y, width: WINDOW_WIDTH, height: WINDOW_HEIGHT })
+            mainWindow.show()
+            mainWindow.focus()
+          }
+        },
+      },
+      { type: 'separator' },
+      {
+        label: 'Quit Zenith',
+        click: () => {
+          app.quit()
+        },
+      },
+    ])
+
+    tray.setContextMenu(contextMenu)
+    tray.on('click', () => {
       if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.show()
+        mainWindow.focus()
         mainWindow.webContents.send('toggle-notch')
       }
     })
+    console.log('[Zenith] System tray created successfully.')
   } catch (err) {
-    console.warn('[Zenith] Could not register global shortcut:', err)
+    console.warn('[Zenith] Could not create system tray:', err)
   }
+}
+
+app.whenReady().then(() => {
+  createTray()
+  createWindow()
+
+  // Register multiple hotkey options for maximum platform compatibility
+  const shortcuts = [
+    'CommandOrControl+Shift+Space',
+    'CommandOrControl+Alt+Space',
+    'CommandOrControl+`',
+    'F8',
+  ]
+  shortcuts.forEach((sc) => {
+    try {
+      const ok = globalShortcut.register(sc, () => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.show()
+          mainWindow.focus()
+          mainWindow.webContents.send('toggle-notch')
+        }
+      })
+      console.log(`[Zenith] Global hotkey '${sc}' registered: ${ok}`)
+    } catch (err) {
+      console.warn(`[Zenith] Could not register shortcut '${sc}':`, err)
+    }
+  })
 
   try {
     powerMonitor.on('on-ac', () => {
@@ -1573,6 +1649,10 @@ app.whenReady().then(() => {
 
 app.on('will-quit', () => {
   globalShortcut.unregisterAll()
+  if (tray) {
+    tray.destroy()
+    tray = null
+  }
 })
 
 app.on('window-all-closed', () => {

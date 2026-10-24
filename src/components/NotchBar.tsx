@@ -187,14 +187,14 @@ export const NotchBar: React.FC = () => {
   useEffect(() => {
     updateHitTesting(false)
 
-    // Initial welcome reveal: bloom for 4s so the user clearly sees Zenith at the top of their screen!
+    // Initial welcome reveal: bloom for 5s so the user clearly sees Zenith at the top of their screen!
     if (!window.location.search.includes('test')) {
       setActiveNotif({
         appName: 'ZENITH',
         title: 'Zenith Living Notch Active',
-        body: 'Click here or press Ctrl + Shift + Space',
+        body: 'Click notch or press F8 / Ctrl+Shift+Space',
       })
-      triggerMorph('notification', 4000)
+      triggerMorph('notification', 5000)
     }
 
     window.devnotch?.loadTasks?.().then((loadedTasks) => {
@@ -218,6 +218,32 @@ export const NotchBar: React.FC = () => {
   const handleMouseLeave = () => {
     updateHitTesting(false)
   }
+
+  // Window-level mouse tracking for instant hit-testing on Windows
+  useEffect(() => {
+    const handleWindowMouseMove = (e: MouseEvent) => {
+      if (isExpanded) {
+        updateHitTesting(true)
+        return
+      }
+      const pill = containerRef.current
+      if (pill) {
+        const isTargetInside = pill.contains(e.target as Node)
+        const rect = pill.getBoundingClientRect()
+        const isCoordsInside =
+          e.clientX >= rect.left - 16 &&
+          e.clientX <= rect.right + 16 &&
+          e.clientY >= 0 &&
+          e.clientY <= rect.bottom + 10
+        updateHitTesting(isTargetInside || isCoordsInside)
+      }
+    }
+
+    window.addEventListener('mousemove', handleWindowMouseMove)
+    return () => {
+      window.removeEventListener('mousemove', handleWindowMouseMove)
+    }
+  }, [isExpanded])
 
   const handleClose = () => {
     setIsExpanded(false)
@@ -680,7 +706,7 @@ export const NotchBar: React.FC = () => {
         return 'w-[370px] h-[44px] rounded-b-[20px] rounded-t-none cursor-pointer border-sky-500/40 shadow-[0_16px_36px_rgba(56,189,248,0.2)]'
       case 'idle':
       default:
-        return 'w-[270px] h-[38px] rounded-b-[18px] rounded-t-none cursor-pointer border border-t-0 border-sky-500/30 hover:border-sky-400 shadow-[0_8px_24px_rgba(0,0,0,0.8),0_0_12px_rgba(56,189,248,0.2)]'
+        return 'w-[280px] h-[38px] rounded-b-[18px] rounded-t-none cursor-pointer border border-t-0 border-sky-400/60 hover:border-sky-300 shadow-[0_8px_28px_rgba(0,0,0,0.9),0_0_16px_rgba(56,189,248,0.35)] ring-1 ring-sky-500/20'
     }
   }
 
@@ -814,24 +840,26 @@ export const NotchBar: React.FC = () => {
             )}
 
             {pillState === 'idle' && (
-              <div className="w-[260px] h-[38px] flex items-center justify-between pointer-events-auto shrink-0 px-4">
+              <div className="w-[270px] h-[38px] flex items-center justify-between pointer-events-auto shrink-0 px-4">
                 {/* Left: Steady status dot & Clock */}
                 <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]"></span>
-                  <span className="text-[11px] font-medium text-zinc-300 font-mono tracking-tight">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.8)] animate-pulse"></span>
+                  <span className="text-[11px] font-semibold text-zinc-100 font-mono tracking-tight">
                     {timeStr || 'ZENITH'}
                   </span>
                 </div>
 
                 {/* Center: Brand & Telemetry Indicator */}
-                <div className="flex items-center gap-2 text-[11px] text-zinc-400">
-                  <span className="font-semibold text-zinc-200 tracking-tight">Zenith</span>
-                  <span className="text-zinc-600">//</span>
-                  <span className="font-mono text-[10px] text-zinc-400">DEV</span>
+                <div className="flex items-center gap-1.5 text-[11px] text-zinc-300">
+                  <span className="font-bold text-white tracking-tight">Zenith</span>
+                  <span className="font-mono text-[9px] px-1.5 py-0.5 rounded bg-sky-500/20 border border-sky-500/40 text-sky-300 font-semibold">DEV</span>
                 </div>
 
                 {/* Right: Expand Trigger */}
-                <div className="flex items-center text-zinc-500 hover:text-zinc-200 transition-colors">
+                <div
+                  className="flex items-center text-sky-400 hover:text-white transition-colors cursor-pointer p-0.5"
+                  title="Expand Zenith (F8 / Ctrl+Shift+Space)"
+                >
                   <ChevronDown className="w-3.5 h-3.5" />
                 </div>
               </div>
