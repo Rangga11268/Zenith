@@ -58,6 +58,7 @@ function getWindowPosition() {
 
 function createWindow() {
   const { x, y } = getWindowPosition()
+  console.log(`[Zenith] Creating window at x: ${x}, y: ${y}, width: ${WINDOW_WIDTH}, height: ${WINDOW_HEIGHT}`)
 
   const preloadMjs = path.join(__dirname, 'preload.mjs')
   const preloadJs = path.join(__dirname, 'preload.js')
@@ -88,12 +89,24 @@ function createWindow() {
   })
 
   // Ensure layered above full-screen apps and other windows
-  mainWindow.setAlwaysOnTop(true, 'screen-saver')
+  if (process.platform === 'darwin') {
+    mainWindow.setAlwaysOnTop(true, 'screen-saver')
+  } else {
+    mainWindow.setAlwaysOnTop(true)
+  }
   mainWindow.setVisibleOnAllWorkspaces?.(true, { visibleOnFullScreen: true })
 
   // Initialize click-through: transparent regions outside the notch pass clicks to background
   mainWindow.setIgnoreMouseEvents(true, { forward: true })
   lastHitTestState = { ignore: true, forward: true }
+
+  mainWindow.webContents.on('console-message', (_event, _level, message, line, sourceId) => {
+    console.log(`[RENDERER] ${message} (${sourceId}:${line})`)
+  })
+
+  mainWindow.webContents.on('did-finish-load', () => {
+    console.log('[Zenith] Renderer did-finish-load successfully! URL:', mainWindow?.webContents.getURL())
+  })
 
   mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
     console.error(`[Zenith] Failed to load renderer: ${errorDescription} (${errorCode})`)
@@ -103,9 +116,12 @@ function createWindow() {
   })
 
   if (process.env.VITE_DEV_SERVER_URL) {
+    console.log('[Zenith] Loading dev server URL:', process.env.VITE_DEV_SERVER_URL)
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
   } else {
-    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
+    const indexPath = path.join(__dirname, '../dist/index.html')
+    console.log('[Zenith] Loading production file:', indexPath)
+    mainWindow.loadFile(indexPath)
   }
 
   // Handle display changes (resolution, connect/disconnect monitor)

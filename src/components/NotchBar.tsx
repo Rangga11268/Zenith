@@ -183,9 +183,19 @@ export const NotchBar: React.FC = () => {
     }
   }, [])
 
-  // Initial hit-testing & task loading
+  // Initial hit-testing, welcome bloom reveal, & task loading
   useEffect(() => {
     updateHitTesting(false)
+
+    // Initial welcome reveal: bloom for 4s so the user clearly sees Zenith at the top of their screen!
+    if (!window.location.search.includes('test')) {
+      setActiveNotif({
+        appName: 'ZENITH',
+        title: 'Zenith Living Notch Active',
+        body: 'Click here or press Ctrl + Shift + Space',
+      })
+      triggerMorph('notification', 4000)
+    }
 
     window.devnotch?.loadTasks?.().then((loadedTasks) => {
       if (Array.isArray(loadedTasks)) {
@@ -670,7 +680,7 @@ export const NotchBar: React.FC = () => {
         return 'w-[370px] h-[44px] rounded-b-[20px] rounded-t-none cursor-pointer border-sky-500/40 shadow-[0_16px_36px_rgba(56,189,248,0.2)]'
       case 'idle':
       default:
-        return 'w-[260px] h-[38px] rounded-b-[18px] rounded-t-none cursor-pointer hover:border-white/20'
+        return 'w-[270px] h-[38px] rounded-b-[18px] rounded-t-none cursor-pointer border border-t-0 border-sky-500/30 hover:border-sky-400 shadow-[0_8px_24px_rgba(0,0,0,0.8),0_0_12px_rgba(56,189,248,0.2)]'
     }
   }
 
